@@ -6,6 +6,7 @@ from discord.ext import commands
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
+
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Global list to track players in queue
@@ -27,7 +28,7 @@ class MatchmakingView(discord.ui.View):
 
         # 2. Add player to queue
         queue.append(player_id)
-        
+
         # 3. Check if a match is made
         if len(queue) >= 2:
             player1 = queue.pop(0)
@@ -35,18 +36,20 @@ class MatchmakingView(discord.ui.View):
             
             # Announce the match publicly
             await interaction.response.send_message(
-                f"🎮 **Match Found!** <@{player1}> vs <@{player2}>. Get ready!",
+                f"🎮 **Match Found!** <@{player1}> vs <@{player2}>. Get ready!", 
                 ephemeral=False
             )
         else:
             # Acknowledge joining without making a match yet
             await interaction.response.send_message(
-                f"✅ {player_name} joined the queue! ({len(queue)}/2)",
+                f"✅ {player_name} joined the queue! ({len(queue)}/2)", 
                 ephemeral=False
             )
 
 @bot.event
 async def on_ready():
+    # CRITICAL: Re-register the persistent view loop when the bot boots or restarts
+    bot.add_view(MatchmakingView())
     print(f"Bot logged in as {bot.user}")
 
 @bot.command()
@@ -54,11 +57,16 @@ async def on_ready():
 async def setup_matchmaking(ctx):
     """Sends the persistent matchmaking button message to a channel."""
     embed = discord.Embed(
-        title="🥊 1v1 Matchmaking Lobby", 
+        title="🥊 1v1 Matchmaking Lobby",
         description="Click the button below to enter the pool. Matches launch automatically as soon as 2 players join.",
         color=discord.Color.blue()
     )
     await ctx.send(embed=embed, view=MatchmakingView())
 
-# Run the bot with your token
-bot.run(os.environ.get("DISCORD_TOKEN"))
+# --- THE FIX: Wrap the blocking command inside a function ---
+def run_my_bot():
+    token = os.environ.get("DISCORD_TOKEN")
+    if not token:
+        print("ERROR: DISCORD_TOKEN environment variable is missing!")
+        return
+    bot.run(token)
