@@ -1,7 +1,7 @@
 import threading
-from flask import Flask
 import os
-import bot  # Ensure this only defines the bot, rather than blocking the script
+from flask import Flask
+import bot  # <--- This should only IMPORT the code, NOT run it!
 
 app = Flask('')
 
@@ -9,16 +9,17 @@ app = Flask('')
 def home():
     return "Bot is alive!"
 
-def run_bot():
-    # If your bot blocks execution, start it here
-    # Example: bot.client.run(os.getenv('TOKEN'))
-    pass
+def start_bot_safely():
+    # Call your bot's startup command INSIDE the background thread
+    print("Starting bot in background thread...")
+    bot.run_my_bot() 
 
 if __name__ == "__main__":
-    # 1. Run the bot in a separate background thread
-    bot_thread = threading.Thread(target=run_bot, daemon=True)
+    # 1. Start the bot on a background daemon thread
+    bot_thread = threading.Thread(target=start_bot_safely, daemon=True)
     bot_thread.start()
 
-    # 2. Run Flask on the main thread using Render's dynamic port
+    # 2. Start Flask instantly on the main thread
     port = int(os.environ.get("PORT", 10000))
+    print(f"Starting Flask on port {port}...")
     app.run(host='0.0.0.0', port=port)
