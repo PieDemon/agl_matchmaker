@@ -7,53 +7,64 @@ intents.message_content = True
 intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# Global queue list
 queue = []
+
+# ID of the dedicated channel where match logs and status updates go
+# You will set this via the command inside Discord!
+STATUS_CHANNEL_ID = None 
 
 class MatchmakingView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="Join 1v1 Queue", style=discord.ButtonStyle.green, custom_id="join_queue")
+    @discord.ui.button(label="Join Queue", style=discord.ButtonStyle.green, custom_id="join_queue")
     async def join_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        global STATUS_CHANNEL_ID
         player_id = interaction.user.id
 
-        # 1. Check if player is already in queue
         if player_id in queue:
             await interaction.response.send_message("❌ You are already in the queue!", ephemeral=True)
             return
 
-        # 2. Add player to queue
         queue.append(player_id)
         
-        # 3. Check if a match is made
+        # Pull the status updates channel object
+        status_channel = bot.get_channel(STATUS_CHANNEL_ID) if STATUS_CHANNEL_ID else None
+
         if len(queue) >= 2:
-            # Acknowledge the button click instantly to prevent Discord timeout errors
-            await interaction.response.send_message("🔄 Match found! Sending DMs...", ephemeral=True)
+            # Match is found!
+            await interaction.response.send_message("🔄 Match found! Generating alert...", ephemeral=True)
             
             p1_id = queue.pop(0)
             p2_id = queue.pop(0)
             
-            # Fetch user objects to send DMs
-            player1 = await bot.fetch_user(p1_id)
-            player2 = await bot.fetch_user(p2_id)
-            
-            # Send DM to Player 1
-            try:
-                await player1.send(f"🎮 **Match Found!** You are playing against **{player2.name}**. Good luck!")
-            except discord.Forbidden:
-                print(f"Could not DM {player1.name}. DMs might be closed.")
-                
-            # Send DM to Player 2
-            try:
-                await player2.send(f"🎮 **Match Found!** You are playing against **{player1.name}**. Good luck!")
-            except discord.Forbidden:
-                print(f"Could not DM {player2.name}. DMs might be closed.")
+            if status_channel:
+                await status_channel.send(
+                    f"⚔️ **Match Found!** <@{p1_id}> vs <@{p2_id}>. Go fight!"
+                )
         else:
-            # Tell the player they joined, but make it hidden from everyone else
-            await interaction.response.send_message(
-                f"✅ You joined the queue! Current players waiting: {len(queue)}/2", 
-                ephemeral=True
-            )
+            # First person joined
+            await interaction.response.send_message("✅ You have joined the queue.", ephemeral=True)
+            if status_channel:
+                await status_channel.send("👥 A player has entered the matchmaking queue! Waiting for an opponent... (1/2)")
+
+    @discord.ui.button(label="Leave Queue", style=discord.ButtonStyle.red, custom_id="leave_queue")
+    async def leave_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        global STATUS_CHANNEL_ID
+        player_id = interaction.user.id
+
+        if player_id not in queue:
+            await interaction.response.send_message("❌ You aren't even in the queue!", ephemeral=True)
+            return
+
+        queue.remove(player_id)
+        await interaction.response.send_message("👋 You have left the queue.", ephemeral=True)
+        
+        # Send an anonymous update that the queue is empty again
+        status_channel = bot.get_channel(STATUS_CHANNEL_ID) if STATUS_CHANNEL_ID else None
+        if status_channel:
+            await status_channel.send("❌ The waiting player left the queue. (0/2)")
 
 @bot.event
 async def on_ready():
@@ -61,11 +72,18 @@ async def on_ready():
 
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def setup_matchmaking(ctx):
+async def setup_matchmaking(ctx, status_channel: discord.TextChannel):
+    """
+    Usage: !setup_matchmaking #match-updates
+    Run this in the clean lobby channel, tagging the updates channel as a parameter.
+    """
+    global STATUS_CHANNEL_ID
+    STATUS_CHANNEL_ID = status_channel.id
+    
     embed = discord.Embed(
-        title="🥊 1v1 Matchmaking", 
-        description="Click the button below to enter the queue. Matches are handled entirely via private DMs.",
-        color=discord.Color.purple()
+        title="🥊 1v1 Matchmaking Lobby", 
+        description="Click the buttons below to manage your queue status. All pairing updates are posted in the logged updates channel.",
+        color=discord.Color.dark_gray()
     )
     await ctx.send(embed=embed, view=MatchmakingView())
 
