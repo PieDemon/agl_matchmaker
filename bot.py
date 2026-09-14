@@ -1,6 +1,19 @@
 import discord
 from discord.ext import commands
 import os
+import gspread
+from google.oauth2.service_account import Credentials
+
+# 1. Google Sheets Setup
+SHEET_ID = "1BcSxlAv1vOdIXDdnivXHmfsP_tTnv0dzdb0fxCWN2FY"
+SCOPES = ["https://googleapis.com"]
+
+try:
+    creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
+    gc = gspread.authorize(creds)
+    sheet = gc.open_by_key(SHEET_ID).worksheet("Standings")
+except Exception as e:
+    print(f"Error connecting to Google Sheets: {e}")
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -87,7 +100,110 @@ async def setup_matchmaking(ctx, status_channel: discord.TextChannel):
     )
     await ctx.send(embed=embed, view=MatchmakingView())
 
-# --- THE FIX: Wrap the blocking command inside a function ---
+# 3. The Registration Modal (Phase 2)
+class RegistrationModal(discord.ui.Modal, title="Complete Registration"):
+    name_input = discord.ui.TextInput(
+        label="Your Name & Tag",
+        placeholder="Arthur R // bionicbunny#12345",
+        style=discord.TextStyle.short,
+        required=True,
+        max_length=100
+    )
+
+    def __init__(self, selections):
+        super().__init__()
+        self.selections = selections  # Dictionary holding {'SOS': 'Yes'/'No', ...}
+
+    async def on_submit(self, interaction: discord.Interaction):
+        user_name = self.name_input.value
+        
+        # Count how many "Yes" choices they made
+        yes_count = sum(1 for val in self.selections.values() if val == "Yes")
+        
+        if yes_count < 2:
+            await interaction.response.send_message(
+                f"❌ Registration failed. You must select **Yes** for at least 2 activities. (You selected {yes_count})",
+                ephemeral=True
+            )
+            return
+
+        # Prepare data row for Google Sheets
+        # Format: [Discord Username, Custom Name Input, SOS, MSH, ECL, ATL]
+        row_data = [
+            str(interaction.user),
+            user_name,
+            self.selections.get("SOS", "No"),
+            self.selections.get("MSH", "No"),
+            self.selections.get("ECL", "No"),
+            self.selections.get("ATL", "No")
+        ]
+
+        try:
+            sheet.append_row(row_data)
+            await interaction.response.send_message(
+                f"✅ Thank you, {user_name}! Your participation has been recorded in the spreadsheet.",
+                ephemeral=True
+            )
+        except Exception as e:
+            await interaction.response.send_message(
+                "❌ There was an error saving your data to the spreadsheet. Please contact an admin.",
+                ephemeral=True
+            )
+            print(f"Sheet Write Error: {e}")
+
+# 4. The Activity Dropdown Component
+class ActivityDropdown(discord.ui.Select):
+    def __init__(self, activity_name):
+        self.activity_name = activity_name
+        options = [
+            discord.SelectOption(label="Yes", description=f"Participate in {activity_name}", emoji="✅"),
+            discord.SelectOption(label="No", description=f"Skip {activity_name}", emoji="❌")
+        ]
+        super().__init__(
+            placeholder=f"Participate in {activity_name}?", 
+            min_values=1, 
+            max_values=1, 
+            options=options
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        # Save selection to the parent view state
+        self.view.selections[self.activity_name] = self.values[0]
+        # Defer interaction so the dropdown doesn't show "interaction failed"
+        await interaction.response.defer()
+
+# 5. The Parent View containing Dropdowns + Submit Button (Phase 1)
+class ActivitySelectionView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None) # Persistent view
+        self.selections = {"SOS": "No", "MSH": "No", "ECL": "No", "ATL": "No"}
+        
+        # Add the four dropdowns
+        self.add_item(ActivityDropdown("SOS"))
+        self.add_item(ActivityDropdown("MSH"))
+        self.add_item(ActivityDropdown("ECL"))
+        self.add_item(ActivityDropdown("ATL"))
+
+    @discord.ui.button(label="Submit & Enter Name", style=discord.ButtonStyle.green, row=4)
+    async def submit_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Open the name modal and pass the selections down to it
+        await interaction.response.send_modal(RegistrationModal(self.selections))
+
+# 6. Command to deploy the interface
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def setup_signup(ctx):
+    embed = discord.Embed(
+        title="🌟 Tournament Activity Registration",
+        description=(
+            "Please select your participation status for the activities below.\n"
+            "⚠️ **Requirement:** You must opt into **at least two (2)** activities.\n\n"
+            "Once selections are made, click the green button to enter your name."
+        ),
+        color=discord.Color.blue()
+    )
+    await ctx.send(embed=embed, view=ActivitySelectionView())
+
 def run_my_bot():
     token = os.environ.get("DISCORD_TOKEN")
     if not token:
