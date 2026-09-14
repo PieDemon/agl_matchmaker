@@ -84,72 +84,137 @@ async def get_user_activities(player_id: int) -> set:
         print(f"Error fetching user activities: {e}")
         return set()
 
+import random
+
+async def get_paired_builds(activity_set: str) -> tuple:
+    """
+    Finds a random pair of rows from the 'Builds' tab matching the given set.
+    Returns a tuple of two links: (build_1_url, build_2_url).
+    """
+    try:
+        # Standard re-authorization block
+        creds_json_string = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+        if creds_json_string:
+            creds_data = json.loads(creds_json_string)
+            creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
+        else:
+            creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
+        
+        gc = gspread.authorize(creds)
+        sheet = gc.open_by_key(SHEET_ID).worksheet("Builds")
+        
+        # Fetch all rows from the sheet (skipping headers)
+        all_rows = sheet.get_all_values()[1:]
+        
+        # Filter rows matching the desired set (Column C / index 2)
+        matching_rows = []
+        for row in all_rows:
+            if len(row) >= 3 and row[2].strip().upper() == activity_set.upper():
+                # We want the 'Build' link which is in Column B (index 1)
+                matching_rows.append(row[1])
+        
+        # Ensure we have at least one complete pair (2 rows)
+        if len(matching_rows) < 2:
+            print(f"Warning: Not enough builds found for set '{activity_set}'. Found {len(matching_rows)}")
+            return None, None
+            
+        # Group adjacent matching rows into explicit pairs
+        # (e.g. index 0 & 1 is Pair 1, index 2 & 3 is Pair 2)
+        pairs = []
+        for i in range(0, len(matching_rows) - 1, 2):
+            pairs.append((matching_rows[i], matching_rows[i+1]))
+            
+        if not pairs:
+            return None, None
+            
+        # Select one pair at random
+        selected_pair = random.choice(pairs)
+        return selected_pair
+        
+    except Exception as e:
+        print(f"Error fetching paired builds: {e}")
+        return None, None
+
 class MatchmakingView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="Join Queue", style=discord.ButtonStyle.green, custom_id="join_queue")
-    async def join_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        global STATUS_CHANNEL_ID
-        await interaction.response.defer(ephemeral=True)  # Defer to prevent timeout errors
+@discord.ui.button(label="Join Queue", style=discord.ButtonStyle.green, custom_id="join_queue")
+async def join_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+    global STATUS_CHANNEL_ID
+    await interaction.response.defer(ephemeral=True)
+    
+    player_id = interaction.user.id
+    
+    if player_id in queue:
+        await interaction.followup.send("❌ You are already in the queue!", ephemeral=True)
+        return
         
-        player_id = interaction.user.id
+    is_registered = await check_if_registered(interaction)
+    if not is_registered:
+        await interaction.followup.send(
+            "⚠️ **Access Denied:** You must complete your **Tournament Registration** before you can join the queue!",
+            ephemeral=True
+        )
+        return
+
+    player_activities = await get_user_activities(player_id)
+    if not player_activities:
+        await interaction.followup.send("⚠️ **Error:** Could not retrieve your activity choices.", ephemeral=True)
+        return
+
+    # Matchmaking loop
+    opponent_id = None
+    matched_set = None
+    
+    for queued_player_id in queue:
+        opponent_activities = await get_user_activities(queued_player_id)
+        shared_activities = player_activities & opponent_activities
         
-        # 1. Check if already in queue
-        if player_id in queue:
-            await interaction.followup.send("❌ You are already in the queue!", ephemeral=True)
-            return
-            
-        # 2. Check if registered
-        is_registered = await check_if_registered(interaction)
-        if not is_registered:
-            await interaction.followup.send(
-                "⚠️ **Access Denied:** You must complete your **Tournament Registration** before you can join the queue!",
-                ephemeral=True
+        if shared_activities:
+            opponent_id = queued_player_id
+            # Grab the first matching activity name (e.g., 'SOS')
+            matched_set = list(shared_activities)[0]
+            break
+
+    status_channel = bot.get_channel(STATUS_CHANNEL_ID) if STATUS_CHANNEL_ID else None
+
+    if opponent_id and matched_set:
+        # 1. Remove opponent from queue
+        queue.remove(opponent_id)
+        await interaction.followup.send("🔄 Match found! Generating alerts and builds...", ephemeral=True)
+        
+        # 2. Fetch the paired build links from the "Builds" sheet
+        build_p1, build_p2 = await get_paired_builds(matched_set)
+        
+        # 3. Publicly announce the match in the server channel
+        if status_channel:
+            await status_channel.send(
+                f"⚔️ **Match Found ({matched_set})!** <@{player_id}> vs <@{opponent_id}>. Check your DMs for your custom builds!"
             )
-            return
-    
-        # 3. Fetch current player's "Yes" activities
-        player_activities = await get_user_activities(player_id)
-        if not player_activities:
-            await interaction.followup.send(
-                "⚠️ **Error:** Could not retrieve your activity choices. Ensure you selected 'Yes' for at least two options.", 
-                ephemeral=True
-            )
-            return
-    
-        # 4. Search the queue for a compatible opponent
-        opponent_id = None
-        for queued_player_id in queue:
-            opponent_activities = await get_user_activities(queued_player_id)
             
-            # Check if they share at least one activity in common
-            shared_activities = player_activities & opponent_activities
-            if shared_activities:
-                opponent_id = queued_player_id
-                break  # Found a valid match!
-    
-        status_channel = bot.get_channel(STATUS_CHANNEL_ID) if STATUS_CHANNEL_ID else None
-    
-        # 5. Handle Matchmaking Result
-        if opponent_id:
-            # Match found! Remove the opponent from the queue
-            queue.remove(opponent_id)
-            
-            await interaction.followup.send("🔄 Match found! Generating alert...", ephemeral=True)
-            
+        # 4. DM Player 1 (the person clicking the button right now)
+        try:
+            p1_msg = f"⚔️ Your match is ready for the set **{matched_set}**!\nHere is your assigned build link: {build_p1 if build_p1 else 'No link found in sheet'}"
+            await interaction.user.send(p1_msg)
+        except discord.Forbidden:
             if status_channel:
-                await status_channel.send(
-                    f"⚔️ **Match Found!** <@{player_id}> vs <@{opponent_id}>. Go fight!"
-                )
-        else:
-            # No compatible opponent found, add current player to the queue
-            queue.append(player_id)
-            await interaction.followup.send("✅ You have joined the queue.", ephemeral=True)
-            
+                await status_channel.send(f"⚠️ Could not send DM to <@{player_id}>. Please open your Privacy Settings / Direct Messages.")
+
+        # 5. DM Player 2 (the person who was waiting in queue)
+        try:
+            opponent_user = await bot.fetch_user(opponent_id)
+            p2_msg = f"⚔️ Your match is ready for the set **{matched_set}**!\nHere is your assigned build link: {build_p2 if build_p2 else 'No link found in sheet'}"
+            await opponent_user.send(p2_msg)
+        except discord.Forbidden:
             if status_channel:
-                # Dynamically count current queue length
-                await status_channel.send(f"👥 A player has entered the matchmaking queue! Waiting for an opponent... ({len(queue)} in queue)")
+                await status_channel.send(f"⚠️ Could not send DM to <@{opponent_id}>. Please open your Privacy Settings / Direct Messages.")
+    else:
+        # No match found, join queue normally
+        queue.append(player_id)
+        await interaction.followup.send("✅ You have joined the queue.", ephemeral=True)
+        if status_channel:
+            await status_channel.send(f"👥 A player has entered the matchmaking queue! Waiting for an opponent... ({len(queue)} in queue)")
 
     @discord.ui.button(label="Leave Queue", style=discord.ButtonStyle.red, custom_id="leave_queue")
     async def leave_button(self, interaction: discord.Interaction, button: discord.ui.Button):
