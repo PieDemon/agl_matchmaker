@@ -126,7 +126,7 @@ class RegistrationModal(discord.ui.Modal, title="Complete Registration"):
         # Prepare data row for Google Sheets
         # Format: [Discord Username, Custom Name Input, SOS, MSH, ECL, ATL]
         row_data = [
-            str(interaction.user),
+            interaction.user.display_name,
             user_name,
             self.selections.get("SOS", "No"),
             self.selections.get("MSH", "No"),
