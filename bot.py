@@ -23,6 +23,18 @@ queue = []
 # You will set this via the command inside Discord!
 STATUS_CHANNEL_ID = None 
 
+async def can_dm_user(user_id: int) -> bool:
+    """Attempts to create a DM channel with a user to verify if their settings allow it."""
+    try:
+        user = await bot.fetch_user(user_id)
+        # Creating a DM channel does not send a message, but fails if DMs are blocked
+        await user.create_dm()
+        return True
+    except discord.Forbidden:
+        return False
+    except Exception:
+        return False
+
 async def check_if_registered(interaction: discord.Interaction) -> bool:
     """Helper function to verify if a user's Discord ID exists in Column A."""
     try:
@@ -158,6 +170,23 @@ async def join_button(self, interaction: discord.Interaction, button: discord.ui
         )
         return
 
+    # 🚨 3. DM Security Check: Are their DMs open right now?
+    dms_are_open = await can_dm_user(player_id)
+    if not dms_are_open:
+        # Disallow them from joining and alert them ephemerally
+        await interaction.followup.send(
+            "❌ **Queue Entry Denied:** The bot could not establish a Direct Message connection with you.", 
+            ephemeral=True
+        )
+        
+        # Publicly warn them in the server channel so they know how to fix it
+        if status_channel:
+            await status_channel.send(
+                f"⚠️ <@{player_id}> tried to join the matchmaking queue but has **Direct Messages closed**! "
+                f"Please update your Discord Privacy Settings to allow server DMs so the bot can send you builds."
+            )
+        return  # Stop execution here; they are NOT added to the queue array
+    
     player_activities = await get_user_activities(player_id)
     if not player_activities:
         await interaction.followup.send("⚠️ **Error:** Could not retrieve your activity choices.", ephemeral=True)
