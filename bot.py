@@ -23,6 +23,67 @@ queue = []
 # You will set this via the command inside Discord!
 STATUS_CHANNEL_ID = None 
 
+async def check_if_registered(interaction: discord.Interaction) -> bool:
+    """Helper function to verify if a user's Discord ID exists in Column A."""
+    try:
+        # Re-authorize to prevent token timeout issues
+        creds_json_string = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+        if creds_json_string:
+            creds_data = json.loads(creds_json_string)
+            creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
+        else:
+            creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
+        
+        gc = gspread.authorize(creds)
+        sheet = gc.open_by_key(SHEET_ID).worksheet("Standings")
+        
+        # 🎯 Look for the user's ID string strictly in Column 1
+        user_id_str = str(interaction.user.id)
+        cell = sheet.find(user_id_str, in_column=1)
+        
+        if cell:
+            return True  # User found!
+        return False     # User not registered
+        
+    except Exception as e:
+        print(f"Queue verification error: {e}")
+        return False
+
+async def get_user_activities(player_id: int) -> set:
+    """Returns a set of activities (e.g., {'SOS', 'ECL'}) that the user selected 'Yes' for."""
+    try:
+        # Standard re-authorization block
+        creds_json_string = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+        if creds_json_string:
+            creds_data = json.loads(creds_json_string)
+            creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
+        else:
+            creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
+        
+        gc = gspread.authorize(creds)
+        sheet = gc.open_by_key(SHEET_ID).worksheet("Standings")
+        
+        # Find the user's row
+        cell = sheet.find(str(player_id), in_column=1)
+        if not cell:
+            return set()
+            
+        row_values = sheet.row_values(cell.row)
+        # Assuming Columns layout: A=ID, B=Name, C=Input, D=SOS, E=MSH, F=ECL, G=ATL
+        # index 3=SOS, 4=MSH, 5=ECL, 6=ATL
+        activities = ["SOS", "MSH", "ECL", "ATL"]
+        user_yes_activities = set()
+        
+        for i, activity in enumerate(activities):
+            # Safe check in case row_values is shorter than expected
+            if len(row_values) > (3 + i) and row_values[3 + i] == "Yes":
+                user_yes_activities.add(activity)
+                
+        return user_yes_activities
+    except Exception as e:
+        print(f"Error fetching user activities: {e}")
+        return set()
+
 class MatchmakingView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -30,33 +91,65 @@ class MatchmakingView(discord.ui.View):
     @discord.ui.button(label="Join Queue", style=discord.ButtonStyle.green, custom_id="join_queue")
     async def join_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         global STATUS_CHANNEL_ID
-        player_id = interaction.user.id
-
-        if player_id in queue:
-            await interaction.response.send_message("❌ You are already in the queue!", ephemeral=True)
-            return
-
-        queue.append(player_id)
+        await interaction.response.defer(ephemeral=True)  # Defer to prevent timeout errors
         
-        # Pull the status updates channel object
-        status_channel = bot.get_channel(STATUS_CHANNEL_ID) if STATUS_CHANNEL_ID else None
-
-        if len(queue) >= 2:
-            # Match is found!
-            await interaction.response.send_message("🔄 Match found! Generating alert...", ephemeral=True)
+        player_id = interaction.user.id
+        
+        # 1. Check if already in queue
+        if player_id in queue:
+            await interaction.followup.send("❌ You are already in the queue!", ephemeral=True)
+            return
             
-            p1_id = queue.pop(0)
-            p2_id = queue.pop(0)
+        # 2. Check if registered
+        is_registered = await check_if_registered(interaction)
+        if not is_registered:
+            await interaction.followup.send(
+                "⚠️ **Access Denied:** You must complete your **Tournament Registration** before you can join the queue!",
+                ephemeral=True
+            )
+            return
+    
+        # 3. Fetch current player's "Yes" activities
+        player_activities = await get_user_activities(player_id)
+        if not player_activities:
+            await interaction.followup.send(
+                "⚠️ **Error:** Could not retrieve your activity choices. Ensure you selected 'Yes' for at least two options.", 
+                ephemeral=True
+            )
+            return
+    
+        # 4. Search the queue for a compatible opponent
+        opponent_id = None
+        for queued_player_id in queue:
+            opponent_activities = await get_user_activities(queued_player_id)
+            
+            # Check if they share at least one activity in common
+            shared_activities = player_activities & opponent_activities
+            if shared_activities:
+                opponent_id = queued_player_id
+                break  # Found a valid match!
+    
+        status_channel = bot.get_channel(STATUS_CHANNEL_ID) if STATUS_CHANNEL_ID else None
+    
+        # 5. Handle Matchmaking Result
+        if opponent_id:
+            # Match found! Remove the opponent from the queue
+            queue.remove(opponent_id)
+            
+            await interaction.followup.send("🔄 Match found! Generating alert...", ephemeral=True)
             
             if status_channel:
                 await status_channel.send(
-                    f"⚔️ **Match Found!** <@{p1_id}> vs <@{p2_id}>. Go fight!"
+                    f"⚔️ **Match Found!** <@{player_id}> vs <@{opponent_id}>. Go fight!"
                 )
         else:
-            # First person joined
-            await interaction.response.send_message("✅ You have joined the queue.", ephemeral=True)
+            # No compatible opponent found, add current player to the queue
+            queue.append(player_id)
+            await interaction.followup.send("✅ You have joined the queue.", ephemeral=True)
+            
             if status_channel:
-                await status_channel.send("👥 A player has entered the matchmaking queue! Waiting for an opponent... (1/2)")
+                # Dynamically count current queue length
+                await status_channel.send(f"👥 A player has entered the matchmaking queue! Waiting for an opponent... ({len(queue)} in queue)")
 
     @discord.ui.button(label="Leave Queue", style=discord.ButtonStyle.red, custom_id="leave_queue")
     async def leave_button(self, interaction: discord.Interaction, button: discord.ui.Button):
