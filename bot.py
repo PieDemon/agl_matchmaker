@@ -3,6 +3,7 @@ from discord.ext import commands
 import os
 import gspread
 from google.oauth2.service_account import Credentials
+from datetime import datetime
 
 # 1. Google Sheets Setup
 SHEET_ID = "1BcSxlAv1vOdIXDdnivXHmfsP_tTnv0dzdb0fxCWN2FY"
@@ -23,6 +24,101 @@ queue = []
 # You will set this via the command inside Discord!
 STATUS_CHANNEL_ID = None 
 
+class ScoreDropdown(discord.ui.Select):
+    def __init__(self, sheet_row: int, is_player_a: bool):
+        self.sheet_row = sheet_row
+        self.is_player_a = is_player_a  # True if they are Player A, False if Player B
+        
+        options = [
+            discord.SelectOption(label="0 Wins", value="0", description="I won 0 games"),
+            discord.SelectOption(label="1 Win", value="1", description="I won 1 game"),
+            discord.SelectOption(label="2 Wins", value="2", description="I won 2 games"),
+            discord.SelectOption(label="3 Wins", value="3", description="I won 3 games"),
+        ]
+        super().__init__(placeholder="Select your total game wins...", options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        wins_reported = self.values[0]
+        
+        try:
+            creds_json_string = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+            if creds_json_string:
+                creds_data = json.loads(creds_json_string)
+                creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
+            else:
+                creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
+            
+            gc = gspread.authorize(creds)
+            sheet = gc.open_by_key(SHEET_ID).worksheet("Matches")
+            
+            # Determine column based on player position
+            # A wins is Column 4 (D), B wins is Column 7 (G)
+            col_num = 4 if self.is_player_a else 7
+            sheet.update_cell(self.sheet_row, col_num, wins_reported)
+            
+            # Update end time column (Column 2 / B) to track when reporting finished
+            end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            sheet.update_cell(self.sheet_row, 2, end_time)
+            
+            # Disable dropdown after selection so they can't double-submit
+            self.disabled = True
+            await interaction.edit_original_response(
+                content=f"✅ **Results Submitted!** Your score of **{wins_reported} wins** has been logged.",
+                view=self.view
+            )
+            
+        except Exception as e:
+            print(f"Error submitting scores: {e}")
+            await interaction.followup.send("❌ An error occurred while writing your score to the spreadsheet.", ephemeral=True)
+
+class ScoreReportingView(discord.ui.View):
+    def __init__(self, sheet_row: int, is_player_a: bool):
+        super().__init__(timeout=None) # Keeps the buttons functional indefinitely
+        self.add_item(ScoreDropdown(sheet_row, is_player_a))
+
+async def record_match_start(p1_name: str, p2_name: str, p1_matched_pool: str, p2_matched_pool: str) -> int:
+    """Inserts a new match record into the 'Matches' sheet and returns its row number."""
+    try:
+        creds_json_string = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+        if creds_json_string:
+            creds_data = json.loads(creds_json_string)
+            creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
+        else:
+            creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
+        
+        gc = gspread.authorize(creds)
+        sheet = gc.open_by_key(SHEET_ID).worksheet("Matches")
+        
+        # Current timestamp format: 2026-09-14 16:54:22
+        start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Columns: Start time, End time, Player A, A wins, A pool, Player B, B wins, B pool
+        # Leave "End time", "A wins", and "B wins" blank initially
+        row_data = [
+            start_time,   # Start time
+            "",           # End time (Pending)
+            p1_name,      # Player A
+            "",           # A wins (Pending)
+            p1_matched_pool, # A pool
+            p2_name,      # Player B
+            "",           # B wins (Pending)
+            p2_matched_pool  # B pool
+        ]
+        
+        # Append the row and get the row index
+        result = sheet.append_row(row_data)
+        
+        # Parse out the updated range to extract the exact row number
+        # gspread returns a dictionary where updates['updatedRange'] looks like "Matches!A15:H15"
+        updated_range = result.get('updates', {}).get('updatedRange', '')
+        row_num = int(''.join(filter(str.isdigit, updated_range.split(':')[-1])))
+        return row_num
+
+    except Exception as e:
+        print(f"Error recording match start: {e}")
+        return None
+        
 async def can_dm_user(user_id: int) -> bool:
     """Attempts to create a DM channel with a user to verify if their settings allow it."""
     try:
@@ -208,36 +304,54 @@ async def join_button(self, interaction: discord.Interaction, button: discord.ui
 
     status_channel = bot.get_channel(STATUS_CHANNEL_ID) if STATUS_CHANNEL_ID else None
 
+    # 6. Handle Matchmaking Results
     if opponent_id and matched_set:
-        # 1. Remove opponent from queue
         queue.remove(opponent_id)
         await interaction.followup.send("🔄 Match found! Generating alerts and builds...", ephemeral=True)
         
-        # 2. Fetch the paired build links from the "Builds" sheet
+        # Fetch the build data
         build_p1, build_p2 = await get_paired_builds(matched_set)
         
-        # 3. Publicly announce the match in the server channel
+        # Get users profiles to read their exact server display names
+        opponent_user = await bot.fetch_user(opponent_id)
+        p1_name = interaction.user.display_name
+        p2_name = opponent_user.display_name
+        
+        # 📝 WRITE TO GOOGLE SHEETS & CAPTURE ROW ID
+        match_row = await record_match_start(p1_name, p2_name, matched_set)
+        
         if status_channel:
             await status_channel.send(
                 f"⚔️ **Match Found ({matched_set})!** <@{player_id}> vs <@{opponent_id}>. Check your DMs for your custom builds!"
             )
             
-        # 4. DM Player 1 (the person clicking the button right now)
+        # Deliver Build + Score Dropdown to Player 1 (Player A)
         try:
-            p1_msg = f"⚔️ Your match is ready for the set **{matched_set}**!\nHere is your assigned build link: {build_p1 if build_p1 else 'No link found in sheet'}"
-            await interaction.user.send(p1_msg)
-        except discord.Forbidden:
-            if status_channel:
-                await status_channel.send(f"⚠️ Could not send DM to <@{player_id}>. Please open your Privacy Settings / Direct Messages.")
-
-        # 5. DM Player 2 (the person who was waiting in queue)
+            p1_view = ScoreReportingView(sheet_row=match_row, is_player_a=True)
+            await interaction.user.send(
+                content=(
+                    f"⚔️ Your match is ready for the set **{matched_set}**!\n"
+                    f"🔗 **Your Build Link:** {build_p1 if build_p1 else 'No link found'}\n\n"
+                    f"🏆 **Report Results:** Once you finish playing all 3 games, select your total wins using the dropdown below:"
+                ),
+                view=p1_view
+            )
+        except Exception as e:
+            print(f"Failed DM to Player 1: {e}")
+            
+        # Deliver Build + Score Dropdown to Player 2 (Player B)
         try:
-            opponent_user = await bot.fetch_user(opponent_id)
-            p2_msg = f"⚔️ Your match is ready for the set **{matched_set}**!\nHere is your assigned build link: {build_p2 if build_p2 else 'No link found in sheet'}"
-            await opponent_user.send(p2_msg)
-        except discord.Forbidden:
-            if status_channel:
-                await status_channel.send(f"⚠️ Could not send DM to <@{opponent_id}>. Please open your Privacy Settings / Direct Messages.")
+            p2_view = ScoreReportingView(sheet_row=match_row, is_player_a=False)
+            await opponent_user.send(
+                content=(
+                    f"⚔️ Your match is ready for the set **{matched_set}**!\n"
+                    f"🔗 **Your Build Link:** {build_p2 if build_p2 else 'No link found'}\n\n"
+                    f"🏆 **Report Results:** Once you finish playing all 3 games, select your total wins using the dropdown below:"
+                ),
+                view=p2_view
+            )
+        except Exception as e:
+            print(f"Failed DM to Player 2: {e}")
     else:
         # No match found, join queue normally
         queue.append(player_id)
