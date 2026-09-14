@@ -6,7 +6,10 @@ from google.oauth2.service_account import Credentials
 
 # 1. Google Sheets Setup
 SHEET_ID = "1BcSxlAv1vOdIXDdnivXHmfsP_tTnv0dzdb0fxCWN2FY"
-SCOPES = ["https://googleapis.com"]
+SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
 
 intents = discord.Intents.default()
 intents.message_content = True
