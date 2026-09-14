@@ -8,13 +8,6 @@ from google.oauth2.service_account import Credentials
 SHEET_ID = "1BcSxlAv1vOdIXDdnivXHmfsP_tTnv0dzdb0fxCWN2FY"
 SCOPES = ["https://googleapis.com"]
 
-try:
-    creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
-    gc = gspread.authorize(creds)
-    sheet = gc.open_by_key(SHEET_ID).worksheet("Standings")
-except Exception as e:
-    print(f"Error connecting to Google Sheets: {e}")
-
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
@@ -137,6 +130,13 @@ class RegistrationModal(discord.ui.Modal, title="Complete Registration"):
             self.selections.get("ECL", "No"),
             self.selections.get("ATL", "No")
         ]
+
+        try:
+            creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
+            gc = gspread.authorize(creds)
+            sheet = gc.open_by_key(SHEET_ID).worksheet("Standings")
+        except Exception as e:
+            print(f"Error connecting to Google Sheets: {e}")
 
         try:
             sheet.append_row(row_data)
