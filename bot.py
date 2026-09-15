@@ -330,8 +330,8 @@ class MatchmakingView(discord.ui.View):
                 
                 # Get users profiles to read their exact server display names
                 opponent_user = await bot.fetch_user(opponent_id)
-                p1_name = interaction.user.display_name
-                p2_name = opponent_user.display_name
+                p1_name = interaction.user.id
+                p2_name = opponent_user.id
                 
                 # 📝 WRITE TO GOOGLE SHEETS & CAPTURE ROW ID
                 match_row = await record_match_start(p1_name, p2_name, build_p1, build_p2)
@@ -467,9 +467,9 @@ class RegistrationModal(discord.ui.Modal, title="Complete Registration"):
             response = sheet.append_row(row_data, value_input_option="USER_ENTERED")
             updated_range = response["updates"]["updatedRange"]
             new_row_number = updated_range.split("!")[-1].split(":")[0][1:]
-            wins_formula = f"=SUMIF(Matches!C:C, B{new_row_number}, Matches!D:D)+SUMIF(Matches!F:F, B{new_row_number}, Matches!G:G)"
+            wins_formula = f"=SUMIF(Matches!C:C, A{new_row_number}, Matches!D:D)+SUMIF(Matches!F:F, A{new_row_number}, Matches!G:G)"
             sheet.update(range_name=f"H{new_row_number}", values=[[wins_formula]], value_input_option="USER_ENTERED")
-            rp_formula = f"=SUMIF(Matches!C:C, B{new_row_number}, Matches!I:I)+SUMIF(Matches!F:F, B{new_row_number}, Matches!J:J)"
+            rp_formula = f"=SUMIF(Matches!C:C, A{new_row_number}, Matches!I:I)+SUMIF(Matches!F:F, A{new_row_number}, Matches!J:J)"
             sheet.update(range_name=f"I{new_row_number}", values=[[rp_formula]], value_input_option="USER_ENTERED")
             await interaction.response.send_message(
                 f"✅ Thank you, {user_name}! Your participation has been recorded in the spreadsheet.",
