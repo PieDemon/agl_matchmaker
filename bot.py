@@ -114,6 +114,10 @@ async def record_match_start(p1_name: str, p2_name: str, p1_matched_pool: str, p
         # gspread returns a dictionary where updates['updatedRange'] looks like "Matches!A15:H15"
         updated_range = result.get('updates', {}).get('updatedRange', '')
         row_num = int(''.join(filter(str.isdigit, updated_range.split(':')[-1])))
+            arp = f"=D{row_num}-SUMIF(Builds!B:B,E{row_num},Builds!E:E)"
+            sheet.update(range_name=f"I{row_num}", values=[[arp]], value_input_option="USER_ENTERED")
+            brp = f"=G{row_num}-SUMIF(Builds!B:B,H{row_num},Builds!E:E)"
+            sheet.update(range_name=f"J{row_num}", values=[[brp]], value_input_option="USER_ENTERED")
         return row_num
 
     except Exception as e:
