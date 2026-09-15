@@ -55,6 +55,9 @@ def already_played(val1, val2):
         exists = (((df[col1_name] == str(val1)) & (df[col2_name] == str(val2))).any() or ((df[col1_name] == str(val2)) & (df[col2_name] == str(val1))).any())
         
         return exists
+    except Exception as e:
+        print(f"Error recording match start: {e}")
+        return None
 
 class ScoreDropdown(discord.ui.Select):
     def __init__(self, sheet_row: int, is_player_a: bool):
