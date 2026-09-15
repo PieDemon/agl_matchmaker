@@ -177,9 +177,9 @@ async def get_user_activities(player_id: int) -> set:
             return set()
             
         row_values = sheet.row_values(cell.row)
-        # Assuming Columns layout: A=ID, B=Name, C=Input, D=SOS, E=MSH, F=ECL, G=ATL
-        # index 3=SOS, 4=MSH, 5=ECL, 6=ATL
-        activities = ["SOS", "MSH", "ECL", "ATL"]
+        # Assuming Columns layout: A=ID, B=Name, C=Input, D=SOS, E=MSH, F=ECL, G=TLA
+        # index 3=SOS, 4=MSH, 5=ECL, 6=TLA
+        activities = ["SOS", "MSH", "ECL", "TLA"]
         user_yes_activities = set()
         
         for i, activity in enumerate(activities):
@@ -425,7 +425,7 @@ class RegistrationModal(discord.ui.Modal, title="Complete Registration"):
             return
 
         # Prepare data row for Google Sheets
-        # Format: [Discord Username, Custom Name Input, SOS, MSH, ECL, ATL]
+        # Format: [Discord Username, Custom Name Input, SOS, MSH, ECL, TLA]
         row_data = [
             str(interaction.user.id),
             interaction.user.display_name,
@@ -433,7 +433,7 @@ class RegistrationModal(discord.ui.Modal, title="Complete Registration"):
             self.selections.get("SOS", "No"),
             self.selections.get("MSH", "No"),
             self.selections.get("ECL", "No"),
-            self.selections.get("ATL", "No")
+            self.selections.get("TLA", "No")
         ]
 
         try:
@@ -481,13 +481,13 @@ class ActivityDropdown(discord.ui.Select):
 class ActivitySelectionView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None) # Persistent view
-        self.selections = {"SOS": "No", "MSH": "No", "ECL": "No", "ATL": "No"}
+        self.selections = {"SOS": "No", "MSH": "No", "ECL": "No", "TLA": "No"}
         
         # Add the four dropdowns
         self.add_item(ActivityDropdown("SOS"))
         self.add_item(ActivityDropdown("MSH"))
         self.add_item(ActivityDropdown("ECL"))
-        self.add_item(ActivityDropdown("ATL"))
+        self.add_item(ActivityDropdown("TLA"))
 
     @discord.ui.button(label="Submit & Enter Name", style=discord.ButtonStyle.green, row=4)
     async def submit_button(self, interaction: discord.Interaction, button: discord.ui.Button):
