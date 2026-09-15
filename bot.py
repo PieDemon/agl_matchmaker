@@ -52,8 +52,7 @@ def already_played(val1, val2):
         col1_name = headers[0]
         col2_name = headers[1]
         
-        exists = (((df[col1_name] == str(val1)) & (df[col2_name] == str(val2))).any() ||
-                 ((df[col1_name] == str(val2)) & (df[col2_name] == str(val1))).any())
+        exists = (((df[col1_name] == str(val1)) & (df[col2_name] == str(val2))).any() or ((df[col1_name] == str(val2)) & (df[col2_name] == str(val1))).any())
         
         return exists
 
