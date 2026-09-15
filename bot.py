@@ -460,7 +460,13 @@ class RegistrationModal(discord.ui.Modal, title="Complete Registration"):
             print(f"Error connecting to Google Sheets: {e}")
 
         try:
-            sheet.append_row(row_data)
+            response = sheet.append_row(row_data, value_input_option="USER_ENTERED")
+            updated_range = response["updates"]["updatedRange"]
+            new_row_number = updated_range.split("!")[-1].split(":")[0][1:]
+            wins_formula = f"=SUMIF(Matches!C:C, B{new_row_number}, Matches!D:D)+SUMIF(Matches!F:F, B{new_row_number}, Matches!G:G)"
+            sheet.update(range_name=f"H{new_row_number}", values=[[wins_formula]], value_input_option="USER_ENTERED")
+            rp_formula = f"=SUMIF(Matches!C:C, B{new_row_number}, Matches!I:I)+SUMIF(Matches!F:F, B{new_row_number}, Matches!J:J)"
+            sheet.update(range_name=f"I{new_row_number}", values=[[rp_formula]], value_input_option="USER_ENTERED")
             await interaction.response.send_message(
                 f"✅ Thank you, {user_name}! Your participation has been recorded in the spreadsheet.",
                 ephemeral=True
