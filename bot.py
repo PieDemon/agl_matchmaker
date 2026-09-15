@@ -19,6 +19,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Global queue list
 queue = []
+processing_players = set()
 
 # ID of the dedicated channel where match logs and status updates go
 # You will set this via the command inside Discord!
@@ -253,10 +254,20 @@ class MatchmakingView(discord.ui.View):
         await interaction.response.defer(ephemeral=True)
         
         player_id = interaction.user.id
-        
-        if player_id in queue:
-            await interaction.followup.send("❌ You are already in the queue!", ephemeral=True)
+
+        # 🚨 LOCK 1: Is the bot currently processing an active click from this user?
+        if player_id in processing_players:
+            # Respond instantly WITHOUT deferring to save performance
+            await interaction.response.send_message("⏳ Please wait, your request is already being processed!", ephemeral=True)
             return
+    
+        # 🚨 LOCK 2: Are they already safely waiting inside the queue?
+        if player_id in queue:
+            await interaction.response.send_message("❌ You are already in the queue!", ephemeral=True)
+            return
+    
+        # Activate the optimistic lock instantly before deferring
+        processing_players.add(player_id)
             
         is_registered = await check_if_registered(interaction)
         if not is_registered:
