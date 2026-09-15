@@ -247,117 +247,117 @@ class MatchmakingView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-@discord.ui.button(label="Join Queue", style=discord.ButtonStyle.green, custom_id="join_queue")
-async def join_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-    global STATUS_CHANNEL_ID
-    await interaction.response.defer(ephemeral=True)
-    
-    player_id = interaction.user.id
-    
-    if player_id in queue:
-        await interaction.followup.send("❌ You are already in the queue!", ephemeral=True)
-        return
+    @discord.ui.button(label="Join Queue", style=discord.ButtonStyle.green, custom_id="join_queue")
+    async def join_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        global STATUS_CHANNEL_ID
+        await interaction.response.defer(ephemeral=True)
         
-    is_registered = await check_if_registered(interaction)
-    if not is_registered:
-        await interaction.followup.send(
-            "⚠️ **Access Denied:** You must complete your **Tournament Registration** before you can join the queue!",
-            ephemeral=True
-        )
-        return
-
-    # 🚨 3. DM Security Check: Are their DMs open right now?
-    dms_are_open = await can_dm_user(player_id)
-    if not dms_are_open:
-        # Disallow them from joining and alert them ephemerally
-        await interaction.followup.send(
-            "❌ **Queue Entry Denied:** The bot could not establish a Direct Message connection with you.", 
-            ephemeral=True
-        )
+        player_id = interaction.user.id
         
-        # Publicly warn them in the server channel so they know how to fix it
-        if status_channel:
-            await status_channel.send(
-                f"⚠️ <@{player_id}> tried to join the matchmaking queue but has **Direct Messages closed**! "
-                f"Please update your Discord Privacy Settings to allow server DMs so the bot can send you builds."
+        if player_id in queue:
+            await interaction.followup.send("❌ You are already in the queue!", ephemeral=True)
+            return
+            
+        is_registered = await check_if_registered(interaction)
+        if not is_registered:
+            await interaction.followup.send(
+                "⚠️ **Access Denied:** You must complete your **Tournament Registration** before you can join the queue!",
+                ephemeral=True
             )
-        return  # Stop execution here; they are NOT added to the queue array
+            return
     
-    player_activities = await get_user_activities(player_id)
-    if not player_activities:
-        await interaction.followup.send("⚠️ **Error:** Could not retrieve your activity choices.", ephemeral=True)
-        return
-
-    # Matchmaking loop
-    opponent_id = None
-    matched_set = None
-    
-    for queued_player_id in queue:
-        opponent_activities = await get_user_activities(queued_player_id)
-        shared_activities = player_activities & opponent_activities
-        
-        if shared_activities:
-            opponent_id = queued_player_id
-            # Grab the first matching activity name (e.g., 'SOS')
-            matched_set = list(shared_activities)[0]
-            break
-
-    status_channel = bot.get_channel(STATUS_CHANNEL_ID) if STATUS_CHANNEL_ID else None
-
-    # 6. Handle Matchmaking Results
-    if opponent_id and matched_set:
-        queue.remove(opponent_id)
-        await interaction.followup.send("🔄 Match found! Generating alerts and builds...", ephemeral=True)
-        
-        # Fetch the build data
-        build_p1, build_p2 = await get_paired_builds(matched_set)
-        
-        # Get users profiles to read their exact server display names
-        opponent_user = await bot.fetch_user(opponent_id)
-        p1_name = interaction.user.display_name
-        p2_name = opponent_user.display_name
-        
-        # 📝 WRITE TO GOOGLE SHEETS & CAPTURE ROW ID
-        match_row = await record_match_start(p1_name, p2_name, matched_set)
-        
-        if status_channel:
-            await status_channel.send(
-                f"⚔️ **Match Found ({matched_set})!** <@{player_id}> vs <@{opponent_id}>. Check your DMs for your custom builds!"
+        # 🚨 3. DM Security Check: Are their DMs open right now?
+        dms_are_open = await can_dm_user(player_id)
+        if not dms_are_open:
+            # Disallow them from joining and alert them ephemerally
+            await interaction.followup.send(
+                "❌ **Queue Entry Denied:** The bot could not establish a Direct Message connection with you.", 
+                ephemeral=True
             )
             
-        # Deliver Build + Score Dropdown to Player 1 (Player A)
-        try:
-            p1_view = ScoreReportingView(sheet_row=match_row, is_player_a=True)
-            await interaction.user.send(
-                content=(
-                    f"⚔️ Your match is ready for the set **{matched_set}**!\n"
-                    f"🔗 **Your Build Link:** {build_p1 if build_p1 else 'No link found'}\n\n"
-                    f"🏆 **Report Results:** Once you finish playing all 3 games, select your total wins using the dropdown below:"
-                ),
-                view=p1_view
-            )
-        except Exception as e:
-            print(f"Failed DM to Player 1: {e}")
+            # Publicly warn them in the server channel so they know how to fix it
+            if status_channel:
+                await status_channel.send(
+                    f"⚠️ <@{player_id}> tried to join the matchmaking queue but has **Direct Messages closed**! "
+                    f"Please update your Discord Privacy Settings to allow server DMs so the bot can send you builds."
+                )
+            return  # Stop execution here; they are NOT added to the queue array
+        
+        player_activities = await get_user_activities(player_id)
+        if not player_activities:
+            await interaction.followup.send("⚠️ **Error:** Could not retrieve your activity choices.", ephemeral=True)
+            return
+    
+        # Matchmaking loop
+        opponent_id = None
+        matched_set = None
+        
+        for queued_player_id in queue:
+            opponent_activities = await get_user_activities(queued_player_id)
+            shared_activities = player_activities & opponent_activities
             
-        # Deliver Build + Score Dropdown to Player 2 (Player B)
-        try:
-            p2_view = ScoreReportingView(sheet_row=match_row, is_player_a=False)
-            await opponent_user.send(
-                content=(
-                    f"⚔️ Your match is ready for the set **{matched_set}**!\n"
-                    f"🔗 **Your Build Link:** {build_p2 if build_p2 else 'No link found'}\n\n"
-                    f"🏆 **Report Results:** Once you finish playing all 3 games, select your total wins using the dropdown below:"
-                ),
-                view=p2_view
-            )
-        except Exception as e:
-            print(f"Failed DM to Player 2: {e}")
-    else:
-        # No match found, join queue normally
-        queue.append(player_id)
-        await interaction.followup.send("✅ You have joined the queue.", ephemeral=True)
-        if status_channel:
-            await status_channel.send(f"👥 A player has entered the matchmaking queue! Waiting for an opponent... ({len(queue)} in queue)")
+            if shared_activities:
+                opponent_id = queued_player_id
+                # Grab the first matching activity name (e.g., 'SOS')
+                matched_set = list(shared_activities)[0]
+                break
+    
+        status_channel = bot.get_channel(STATUS_CHANNEL_ID) if STATUS_CHANNEL_ID else None
+    
+        # 6. Handle Matchmaking Results
+        if opponent_id and matched_set:
+            queue.remove(opponent_id)
+            await interaction.followup.send("🔄 Match found! Generating alerts and builds...", ephemeral=True)
+            
+            # Fetch the build data
+            build_p1, build_p2 = await get_paired_builds(matched_set)
+            
+            # Get users profiles to read their exact server display names
+            opponent_user = await bot.fetch_user(opponent_id)
+            p1_name = interaction.user.display_name
+            p2_name = opponent_user.display_name
+            
+            # 📝 WRITE TO GOOGLE SHEETS & CAPTURE ROW ID
+            match_row = await record_match_start(p1_name, p2_name, matched_set)
+            
+            if status_channel:
+                await status_channel.send(
+                    f"⚔️ **Match Found ({matched_set})!** <@{player_id}> vs <@{opponent_id}>. Check your DMs for your custom builds!"
+                )
+                
+            # Deliver Build + Score Dropdown to Player 1 (Player A)
+            try:
+                p1_view = ScoreReportingView(sheet_row=match_row, is_player_a=True)
+                await interaction.user.send(
+                    content=(
+                        f"⚔️ Your match is ready for the set **{matched_set}**!\n"
+                        f"🔗 **Your Build Link:** {build_p1 if build_p1 else 'No link found'}\n\n"
+                        f"🏆 **Report Results:** Once you finish playing all 3 games, select your total wins using the dropdown below:"
+                    ),
+                    view=p1_view
+                )
+            except Exception as e:
+                print(f"Failed DM to Player 1: {e}")
+                
+            # Deliver Build + Score Dropdown to Player 2 (Player B)
+            try:
+                p2_view = ScoreReportingView(sheet_row=match_row, is_player_a=False)
+                await opponent_user.send(
+                    content=(
+                        f"⚔️ Your match is ready for the set **{matched_set}**!\n"
+                        f"🔗 **Your Build Link:** {build_p2 if build_p2 else 'No link found'}\n\n"
+                        f"🏆 **Report Results:** Once you finish playing all 3 games, select your total wins using the dropdown below:"
+                    ),
+                    view=p2_view
+                )
+            except Exception as e:
+                print(f"Failed DM to Player 2: {e}")
+        else:
+            # No match found, join queue normally
+            queue.append(player_id)
+            await interaction.followup.send("✅ You have joined the queue.", ephemeral=True)
+            if status_channel:
+                await status_channel.send(f"👥 A player has entered the matchmaking queue! Waiting for an opponent... ({len(queue)} in queue)")
 
     @discord.ui.button(label="Leave Queue", style=discord.ButtonStyle.red, custom_id="leave_queue")
     async def leave_button(self, interaction: discord.Interaction, button: discord.ui.Button):
