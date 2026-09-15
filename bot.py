@@ -4,6 +4,7 @@ import os
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
+import pandas as pd
 
 # 1. Google Sheets Setup
 SHEET_ID = "1BcSxlAv1vOdIXDdnivXHmfsP_tTnv0dzdb0fxCWN2FY"
@@ -24,6 +25,37 @@ processing_players = set()
 # ID of the dedicated channel where match logs and status updates go
 # You will set this via the command inside Discord!
 STATUS_CHANNEL_ID = None 
+
+def already_played(val1, val2):
+    try:
+        creds_json_string = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+        if creds_json_string:
+            creds_data = json.loads(creds_json_string)
+            creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
+        else:
+            creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
+        
+        gc = gspread.authorize(creds)
+        sheet = gc.open_by_key(SHEET_ID).worksheet("Matches")
+        # 3. Fetch only the two columns you need (e.g., Column A and Column B)
+        # This grabs all data from Col A and Col B starting from row 1
+        records = sheet.get("C,F") 
+        
+        # 4. Load data into a Pandas DataFrame
+        # If your columns have headers, use records[0] as columns, and records[1:] as data
+        headers = records[0]
+        data = records[1:]
+        df = pd.DataFrame(data, columns=headers)
+        
+        # 5. Check if the pair exists anywhere in the same row [14]
+        # Replace 'HeaderA' and 'HeaderB' with your actual column names
+        col1_name = headers[0]
+        col2_name = headers[1]
+        
+        exists = (((df[col1_name] == str(val1)) & (df[col2_name] == str(val2))).any() ||
+                 ((df[col1_name] == str(val2)) & (df[col2_name] == str(val1))).any())
+        
+        return exists
 
 class ScoreDropdown(discord.ui.Select):
     def __init__(self, sheet_row: int, is_player_a: bool):
@@ -309,6 +341,9 @@ class MatchmakingView(discord.ui.View):
             matched_set = None
             
             for queued_player_id in queue:
+                if already_played(player_id, queued_player_id):
+                    break
+                
                 opponent_activities = await get_user_activities(queued_player_id)
                 shared_activities = player_activities & opponent_activities
                 
