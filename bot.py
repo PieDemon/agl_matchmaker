@@ -37,9 +37,7 @@ def already_played(val1, val2):
         
         gc = gspread.authorize(creds)
         sheet = gc.open_by_key(SHEET_ID).worksheet("Matches")
-        # 3. Fetch only the two columns you need (e.g., Column A and Column B)
-        # This grabs all data from Col A and Col B starting from row 1
-        records = sheet.get("C,F") 
+        records = sheet.get("C:F") 
         
         # 4. Load data into a Pandas DataFrame
         # If your columns have headers, use records[0] as columns, and records[1:] as data
@@ -50,7 +48,7 @@ def already_played(val1, val2):
         # 5. Check if the pair exists anywhere in the same row [14]
         # Replace 'HeaderA' and 'HeaderB' with your actual column names
         col1_name = headers[0]
-        col2_name = headers[1]
+        col2_name = headers[3]
         
         exists = (((df[col1_name] == str(val1)) & (df[col2_name] == str(val2))).any() or ((df[col1_name] == str(val2)) & (df[col2_name] == str(val1))).any())
         
@@ -343,7 +341,7 @@ class MatchmakingView(discord.ui.View):
             matched_set = None
             
             for queued_player_id in queue:
-                if already_played(str(player_id), str(queued_player_id)):
+                if already_played(player_id, queued_player_id):
                     break
                 
                 opponent_activities = await get_user_activities(queued_player_id)
