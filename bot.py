@@ -367,8 +367,8 @@ class MatchmakingView(discord.ui.View):
                 
                 # Get users profiles to read their exact server display names
                 opponent_user = await bot.fetch_user(opponent_id)
-                p1_name = interaction.user.id
-                p2_name = opponent_user.id
+                p1_name = player_id
+                p2_name = opponent_id
                 
                 # 📝 WRITE TO GOOGLE SHEETS & CAPTURE ROW ID
                 match_row = await record_match_start(p1_name, p2_name, build_p1, build_p2)
