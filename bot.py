@@ -343,7 +343,7 @@ class MatchmakingView(discord.ui.View):
             matched_set = None
             
             for queued_player_id in queue:
-                if already_played(player_id, queued_player_id):
+                if already_played(str(player_id), str(queued_player_id)):
                     break
                 
                 opponent_activities = await get_user_activities(queued_player_id)
@@ -367,8 +367,8 @@ class MatchmakingView(discord.ui.View):
                 
                 # Get users profiles to read their exact server display names
                 opponent_user = await bot.fetch_user(opponent_id)
-                p1_name = player_id
-                p2_name = opponent_id
+                p1_name = str(player_id)
+                p2_name = str(opponent_id)
                 
                 # 📝 WRITE TO GOOGLE SHEETS & CAPTURE ROW ID
                 match_row = await record_match_start(p1_name, p2_name, build_p1, build_p2)
