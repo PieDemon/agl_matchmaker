@@ -369,7 +369,11 @@ class MatchmakingView(discord.ui.View):
             await interaction.followup.send("✅ You have joined the queue.", ephemeral=True)
             if status_channel:
                 await status_channel.send(f"👥 A player has entered the matchmaking queue! Waiting for an opponent... ({len(queue)} in queue)")
-
+        finally:
+            # 🔓 ALWAYS release the processing lock at the very end, regardless of success or failure
+            if player_id in processing_players:
+                processing_players.remove(player_id)
+    
     @discord.ui.button(label="Leave Queue", style=discord.ButtonStyle.red, custom_id="leave_queue")
     async def leave_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         global STATUS_CHANNEL_ID
