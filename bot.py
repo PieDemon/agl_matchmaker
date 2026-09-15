@@ -56,7 +56,7 @@ def already_played(val1, val2):
         
         return exists
     except Exception as e:
-        print(f"Error recording match start: {e}")
+        print(f"Error checking whether players have played: {e}")
         return None
 
 class ScoreDropdown(discord.ui.Select):
