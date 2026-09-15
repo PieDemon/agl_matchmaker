@@ -318,7 +318,7 @@ class MatchmakingView(discord.ui.View):
             p2_name = opponent_user.display_name
             
             # 📝 WRITE TO GOOGLE SHEETS & CAPTURE ROW ID
-            match_row = await record_match_start(p1_name, p2_name, matched_set)
+            match_row = await record_match_start(p1_name, p2_name, build_p1, build_p2)
             
             if status_channel:
                 await status_channel.send(
