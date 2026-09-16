@@ -266,7 +266,7 @@ async def get_user_activities(player_id: int) -> set:
         print(f"Error fetching user activities: {e}")
         return set()
 
-async def get_paired_builds(p1, p2, activity_sets: str) -> tuple:
+async def get_paired_builds(p1, p2, activity_sets) -> tuple:
     """
     Finds a random pair of rows from the 'Builds' tab matching the given set.
     Returns a tuple of two links: (build_1_url, build_2_url).
@@ -376,7 +376,7 @@ class MatchmakingView(discord.ui.View):
         
             # Matchmaking loop
             opponent_id = None
-            matched_set = None
+            #matched_set = None
             
             for queued_player_id in queue:
                 if already_played(player_id, queued_player_id):
@@ -395,7 +395,7 @@ class MatchmakingView(discord.ui.View):
             status_channel = bot.get_channel(STATUS_CHANNEL_ID) if STATUS_CHANNEL_ID else None
         
             # 6. Handle Matchmaking Results
-            if opponent_id: # and matched_set:
+            if opponent_id and build_p1 and build_p2: # and matched_set:
                 queue.remove(opponent_id)
                 await interaction.followup.send("🔄 Match found! Generating alerts and builds...", ephemeral=True)
                 
@@ -412,7 +412,7 @@ class MatchmakingView(discord.ui.View):
                 
                 if status_channel:
                     await status_channel.send(
-                        f"⚔️ **Match Found ({matched_set})!** <@{player_id}> vs <@{opponent_id}>. Check your DMs for your custom builds!"
+                        f"⚔️ **Match Found!** <@{player_id}> vs <@{opponent_id}>. Check your DMs for your custom builds!"
                     )
                     
                 # Deliver Build + Score Dropdown to Player 1 (Player A)
