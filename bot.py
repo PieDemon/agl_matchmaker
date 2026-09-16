@@ -376,7 +376,6 @@ class MatchmakingView(discord.ui.View):
         
             # Matchmaking loop
             opponent_id = None
-            #matched_set = None
             
             for queued_player_id in queue:
                 if already_played(player_id, queued_player_id):
@@ -388,19 +387,15 @@ class MatchmakingView(discord.ui.View):
                 if shared_activities:
                     opponent_id = queued_player_id
                     # Grab the first matching activity name (e.g., 'SOS')
-                    # matched_set = list(shared_activities)[0]
                     build_p1, build_p2 = await get_paired_builds(str(player_id), str(opponent_id), list(shared_activities))
                     break
         
             status_channel = bot.get_channel(STATUS_CHANNEL_ID) if STATUS_CHANNEL_ID else None
         
             # 6. Handle Matchmaking Results
-            if opponent_id and build_p1 and build_p2: # and matched_set:
+            if opponent_id and build_p1 and build_p2: 
                 queue.remove(opponent_id)
                 await interaction.followup.send("🔄 Match found! Generating alerts and builds...", ephemeral=True)
-                
-                # Fetch the build data
-                # build_p1, build_p2 = await get_paired_builds(matched_set)
                 
                 # Get users profiles to read their exact server display names
                 opponent_user = await bot.fetch_user(opponent_id)
@@ -420,7 +415,7 @@ class MatchmakingView(discord.ui.View):
                     p1_view = ScoreReportingView(sheet_row=match_row, is_player_a=True)
                     await interaction.user.send(
                         content=(
-                            f"⚔️ Your match is ready for the set **{matched_set}**!\n"
+                            f"⚔️ Your match is ready!\n"
                             f"🔗 **Your Build Link:** {build_p1 if build_p1 else 'No link found'}\n\n"
                             f"🏆 **Report Results:** Once you finish playing all 3 games, select your total wins using the dropdown below:"
                         ),
@@ -434,7 +429,7 @@ class MatchmakingView(discord.ui.View):
                     p2_view = ScoreReportingView(sheet_row=match_row, is_player_a=False)
                     await opponent_user.send(
                         content=(
-                            f"⚔️ Your match is ready for the set **{matched_set}**!\n"
+                            f"⚔️ Your match is ready!\n"
                             f"🔗 **Your Build Link:** {build_p2 if build_p2 else 'No link found'}\n\n"
                             f"🏆 **Report Results:** Once you finish playing all 3 games, select your total wins using the dropdown below:"
                         ),
