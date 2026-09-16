@@ -5,6 +5,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 import pandas as pd
+import random
 
 # 1. Google Sheets Setup
 SHEET_ID = "1BcSxlAv1vOdIXDdnivXHmfsP_tTnv0dzdb0fxCWN2FY"
@@ -25,6 +26,42 @@ processing_players = set()
 # ID of the dedicated channel where match logs and status updates go
 # You will set this via the command inside Discord!
 STATUS_CHANNEL_ID = None 
+
+def already_played_build(player, build):
+    try:
+        creds_json_string = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+        if creds_json_string:
+            creds_data = json.loads(creds_json_string)
+            creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
+        else:
+            creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
+        
+        gc = gspread.authorize(creds)
+        sheet = gc.open_by_key(SHEET_ID).worksheet("Matches")
+        records = sheet.get("C:H") 
+        headers = records[0]
+        data = records[1:]
+        df = pd.DataFrame(data, columns=headers)
+
+        p1_name_col = headers[0]
+        p2_name_col = headers[3]
+        p1_pool_col = headers[2]
+        p2_pool_col = headers[5]
+
+        name_condition = (df[p1_name_col] == player) | (df[p2_name_col] == player)
+        pool_condition = (df[p1_pool_col] == build) | (df[p2_pool_col] == build)
+        
+        # 2. Combine them with the ampersand (&) operator
+        matching_rows = df[name_condition & pool_condition]
+        
+        # 3. Check if *any* row matched the criteria
+        return not matching_rows.empty
+
+        #return (((df[p1_name_col] == str(player)) & (df[col2_name] == str(val2))).any()
+        
+    except Exception as e:
+        print(f"Error checking whether players have played: {e}")
+        return None
 
 def already_played(val1, val2):
     try:
@@ -229,9 +266,7 @@ async def get_user_activities(player_id: int) -> set:
         print(f"Error fetching user activities: {e}")
         return set()
 
-import random
-
-async def get_paired_builds(activity_set: str) -> tuple:
+async def get_paired_builds(p1, p2, activity_sets: str) -> tuple:
     """
     Finds a random pair of rows from the 'Builds' tab matching the given set.
     Returns a tuple of two links: (build_1_url, build_2_url).
@@ -254,9 +289,10 @@ async def get_paired_builds(activity_set: str) -> tuple:
         # Filter rows matching the desired set (Column C / index 2)
         matching_rows = []
         for row in all_rows:
-            if len(row) >= 3 and row[2].strip().upper() == activity_set.upper():
-                # We want the 'Build' link which is in Column B (index 1)
-                matching_rows.append(row[1])
+            for activity_set in activity_sets:
+                if len(row) >= 3 and row[2].strip().upper() == activity_set.upper():
+                    # We want the 'Build' link which is in Column B (index 1)
+                    matching_rows.append(row[1])
         
         # Ensure we have at least one complete pair (2 rows)
         if len(matching_rows) < 2:
@@ -267,6 +303,8 @@ async def get_paired_builds(activity_set: str) -> tuple:
         # (e.g. index 0 & 1 is Pair 1, index 2 & 3 is Pair 2)
         pairs = []
         for i in range(0, len(matching_rows) - 1, 2):
+            if(already_played_build(p1, matching_rows[i]) or already_played_build(p2, matching_rows[i])):
+                break
             pairs.append((matching_rows[i], matching_rows[i+1]))
             
         if not pairs:
@@ -342,7 +380,7 @@ class MatchmakingView(discord.ui.View):
             
             for queued_player_id in queue:
                 if already_played(player_id, queued_player_id):
-                    break
+                    continue
                 
                 opponent_activities = await get_user_activities(queued_player_id)
                 shared_activities = player_activities & opponent_activities
@@ -350,18 +388,19 @@ class MatchmakingView(discord.ui.View):
                 if shared_activities:
                     opponent_id = queued_player_id
                     # Grab the first matching activity name (e.g., 'SOS')
-                    matched_set = list(shared_activities)[0]
+                    # matched_set = list(shared_activities)[0]
+                    build_p1, build_p2 = await get_paired_builds(str(player_id), str(opponent_id), list(shared_activities))
                     break
         
             status_channel = bot.get_channel(STATUS_CHANNEL_ID) if STATUS_CHANNEL_ID else None
         
             # 6. Handle Matchmaking Results
-            if opponent_id and matched_set:
+            if opponent_id: # and matched_set:
                 queue.remove(opponent_id)
                 await interaction.followup.send("🔄 Match found! Generating alerts and builds...", ephemeral=True)
                 
                 # Fetch the build data
-                build_p1, build_p2 = await get_paired_builds(matched_set)
+                # build_p1, build_p2 = await get_paired_builds(matched_set)
                 
                 # Get users profiles to read their exact server display names
                 opponent_user = await bot.fetch_user(opponent_id)
