@@ -463,7 +463,7 @@ class MatchmakingView(discord.ui.View):
         # Send an anonymous update that the queue is empty again
         status_channel = bot.get_channel(STATUS_CHANNEL_ID) if STATUS_CHANNEL_ID else None
         if status_channel:
-            await status_channel.send("❌ A waiting player left the queue. ({len(queue)} in queue)")
+            await status_channel.send(f"❌ A waiting player left the queue. ({len(queue)} in queue)")
 
 @bot.event
 async def on_ready():
