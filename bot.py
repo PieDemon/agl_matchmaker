@@ -304,7 +304,7 @@ async def get_paired_builds(p1, p2, activity_sets) -> tuple:
         pairs = []
         for i in range(0, len(matching_rows) - 1, 2):
             if(already_played_build(p1, matching_rows[i]) or already_played_build(p2, matching_rows[i])):
-                break
+                continue
             pairs.append((matching_rows[i], matching_rows[i+1]))
             
         if not pairs:
@@ -468,7 +468,7 @@ class MatchmakingView(discord.ui.View):
         # Send an anonymous update that the queue is empty again
         status_channel = bot.get_channel(STATUS_CHANNEL_ID) if STATUS_CHANNEL_ID else None
         if status_channel:
-            await status_channel.send("❌ The waiting player left the queue. (0/2)")
+            await status_channel.send("❌ A waiting player left the queue. ({len(queue)} in queue)")
 
 @bot.event
 async def on_ready():
