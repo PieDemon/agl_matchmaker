@@ -27,16 +27,17 @@ processing_players = set()
 # You will set this via the command inside Discord!
 STATUS_CHANNEL_ID = None 
 
+creds_json_string = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+if creds_json_string:
+    creds_data = json.loads(creds_json_string)
+    creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
+else:
+    creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
+
+gc = gspread.authorize(creds)
+
 def already_played_build(player, build):
     try:
-        creds_json_string = os.environ.get("GOOGLE_CREDENTIALS_JSON")
-        if creds_json_string:
-            creds_data = json.loads(creds_json_string)
-            creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
-        else:
-            creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
-        
-        gc = gspread.authorize(creds)
         sheet = gc.open_by_key(SHEET_ID).worksheet("Matches")
         records = sheet.get("C:H") 
         headers = records[0]
@@ -65,14 +66,6 @@ def already_played_build(player, build):
 
 def already_played(val1, val2):
     try:
-        creds_json_string = os.environ.get("GOOGLE_CREDENTIALS_JSON")
-        if creds_json_string:
-            creds_data = json.loads(creds_json_string)
-            creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
-        else:
-            creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
-        
-        gc = gspread.authorize(creds)
         sheet = gc.open_by_key(SHEET_ID).worksheet("Matches")
         records = sheet.get("C:F") 
         
@@ -112,14 +105,6 @@ class ScoreDropdown(discord.ui.Select):
         wins_reported = self.values[0]
         
         try:
-            creds_json_string = os.environ.get("GOOGLE_CREDENTIALS_JSON")
-            if creds_json_string:
-                creds_data = json.loads(creds_json_string)
-                creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
-            else:
-                creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
-            
-            gc = gspread.authorize(creds)
             sheet = gc.open_by_key(SHEET_ID).worksheet("Matches")
             
             # Determine column based on player position
@@ -150,14 +135,6 @@ class ScoreReportingView(discord.ui.View):
 async def record_match_start(p1_name: str, p2_name: str, p1_matched_pool: str, p2_matched_pool: str) -> int:
     """Inserts a new match record into the 'Matches' sheet and returns its row number."""
     try:
-        creds_json_string = os.environ.get("GOOGLE_CREDENTIALS_JSON")
-        if creds_json_string:
-            creds_data = json.loads(creds_json_string)
-            creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
-        else:
-            creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
-        
-        gc = gspread.authorize(creds)
         sheet = gc.open_by_key(SHEET_ID).worksheet("Matches")
         
         # Current timestamp format: 2026-09-14 16:54:22
@@ -208,15 +185,6 @@ async def can_dm_user(user_id: int) -> bool:
 async def check_if_registered(interaction: discord.Interaction) -> bool:
     """Helper function to verify if a user's Discord ID exists in Column A."""
     try:
-        # Re-authorize to prevent token timeout issues
-        creds_json_string = os.environ.get("GOOGLE_CREDENTIALS_JSON")
-        if creds_json_string:
-            creds_data = json.loads(creds_json_string)
-            creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
-        else:
-            creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
-        
-        gc = gspread.authorize(creds)
         sheet = gc.open_by_key(SHEET_ID).worksheet("Standings")
         
         # 🎯 Look for the user's ID string strictly in Column 1
@@ -234,15 +202,6 @@ async def check_if_registered(interaction: discord.Interaction) -> bool:
 async def get_user_activities(player_id: int) -> set:
     """Returns a set of activities (e.g., {'SOS', 'ECL'}) that the user selected 'Yes' for."""
     try:
-        # Standard re-authorization block
-        creds_json_string = os.environ.get("GOOGLE_CREDENTIALS_JSON")
-        if creds_json_string:
-            creds_data = json.loads(creds_json_string)
-            creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
-        else:
-            creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
-        
-        gc = gspread.authorize(creds)
         sheet = gc.open_by_key(SHEET_ID).worksheet("Standings")
         
         # Find the user's row
@@ -272,15 +231,6 @@ async def get_paired_builds(p1, p2, activity_sets) -> tuple:
     Returns a tuple of two links: (build_1_url, build_2_url).
     """
     try:
-        # Standard re-authorization block
-        creds_json_string = os.environ.get("GOOGLE_CREDENTIALS_JSON")
-        if creds_json_string:
-            creds_data = json.loads(creds_json_string)
-            creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
-        else:
-            creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
-        
-        gc = gspread.authorize(creds)
         sheet = gc.open_by_key(SHEET_ID).worksheet("Builds")
         
         # Fetch all rows from the sheet (skipping headers)
@@ -526,8 +476,6 @@ class RegistrationModal(discord.ui.Modal, title="Complete Registration"):
         ]
 
         try:
-            creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
-            gc = gspread.authorize(creds)
             sheet = gc.open_by_key(SHEET_ID).worksheet("Standings")
         except Exception as e:
             print(f"Error connecting to Google Sheets: {e}")
