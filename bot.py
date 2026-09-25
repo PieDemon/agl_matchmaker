@@ -488,6 +488,8 @@ class RegistrationModal(discord.ui.Modal, title="Complete Registration"):
             sheet.update(range_name=f"H{new_row_number}", values=[[wins_formula]], value_input_option="USER_ENTERED")
             rp_formula = f"=SUMIF(Matches!C:C, A{new_row_number}, Matches!I:I)+SUMIF(Matches!F:F, A{new_row_number}, Matches!J:J)"
             sheet.update(range_name=f"I{new_row_number}", values=[[rp_formula]], value_input_option="USER_ENTERED")
+            mp_formula = f"=COUNTIF(Matches!C:C, A{new_row_number})+COUNTIF(Matches!F:F, A{new_row_number})"
+            sheet.update(range_name=f"J{new_row_number}", values=[[mp_formula]], value_input_option="USER_ENTERED")
             await interaction.response.send_message(
                 f"✅ Thank you, {user_name}! Your participation has been recorded in the spreadsheet.",
                 ephemeral=True
