@@ -6,6 +6,7 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 import pandas as pd
 import random
+from cache_manager import CacheManager
 
 # 1. Google Sheets Setup
 SHEET_ID = "1BcSxlAv1vOdIXDdnivXHmfsP_tTnv0dzdb0fxCWN2FY"
@@ -13,6 +14,10 @@ SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
+
+
+MATCHES_WORKSHEET_NAME = "Matches"
+MATCHES_TOTAL_COLUMNS = 10 
 
 intents = discord.Intents.default()
 intents.message_content = True
