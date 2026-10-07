@@ -2,8 +2,6 @@ import gspread
 
 # 1. Google Sheets Setup
 SHEET_ID = "1BcSxlAv1vOdIXDdnivXHmfsP_tTnv0dzdb0fxCWN2FY"
-MATCHES_WORKSHEET_NAME = "Matches"
-MATCHES_TOTAL_COLUMNS = 10 
 STANDINGS_WORKSHEET_NAME = "Standings"
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -11,7 +9,7 @@ SCOPES = [
 ]
 
 class CacheManager:
-    def __init__(self):
+    def __init__(self, worksheet, columns):
         creds_json_string = os.environ.get("GOOGLE_CREDENTIALS_JSON")
         if creds_json_string:
             creds_data = json.loads(creds_json_string)
@@ -21,9 +19,9 @@ class CacheManager:
         
         self.gc = gspread.authorize(creds)
         self.sh = self.gc.open_by_key(SHEET_ID)
-        self.matches = self.sh.worksheet(MATCHES_WORKSHEET_NAME)
-        self.standings = self.sh.worksheet(STANDINGS_WORKSHEET_NAME)
-        self.worksheet_id = self.worksheet.id
+        self.ws = self.sh.worksheet(worksheet)
+        self.worksheet_id = self.ws.id
+        self.max_columns = columns
         
         self.update_queue = {} # {(row, col): value}
 
@@ -46,14 +44,18 @@ class CacheManager:
         # Loop sequentially through every single row from the top to bottom of our box
         for current_row in range(min_row, max_row + 1):
             # Create a blank row template filled with 10 empty cell dicts (skips by default)
-            row_cells = [{} for _ in range(MATCHES_TOTAL_COLUMNS)]
+            row_cells = [{} for _ in range(self.max_columns)]
             
             # Populate cells ONLY if we have an active queued update for this exact row
-            for col in range(1, MATCHES_TOTAL_COLUMNS + 1):
+            for col in range(1, self.max_columns + 1):
                 if (current_row, col) in self.update_queue:
                     value = self.update_queue[(current_row, col)]
-                    val_type = "numberValue" if isinstance(value, (int, float)) else "stringValue"
-                    
+                    if isinstance(value, str) and value.startswith('='):
+                        val_type = "formulaValue"
+                    elif isinstance(value, (int, float)):
+                        val_type = "numberValue"
+                    else:
+                        val_type = "stringValue"
                     row_cells[col - 1] = {
                         "userEnteredValue": {
                             val_type: value
@@ -71,7 +73,7 @@ class CacheManager:
                     "startRowIndex": min_row - 1,    # Inclusive start (0-indexed)
                     "endRowIndex": max_row,          # Exclusive end
                     "startColumnIndex": 0,           # Column A
-                    "endColumnIndex": MATCHES_TOTAL_COLUMNS  # Column J
+                    "endColumnIndex": self.max_columns  # Column J
                 },
                 "rows": rows_payload,
                 "fields": "userEnteredValue"         # Tells Google to ignore all the {} cells
