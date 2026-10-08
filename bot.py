@@ -49,15 +49,6 @@ processing_players = set()
 # You will set this via the command inside Discord!
 STATUS_CHANNEL_ID = None 
 
-creds_json_string = os.environ.get("GOOGLE_CREDENTIALS_JSON")
-if creds_json_string:
-    creds_data = json.loads(creds_json_string)
-    creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
-else:
-    creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
-
-gc = gspread.authorize(creds)
-
 def already_played_build(player, build):
     try:
         records = matches_manager.get_records()
