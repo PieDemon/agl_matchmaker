@@ -532,7 +532,7 @@ def run_my_bot():
     standings_thread.start()    
     matches_thread = threading.Thread(target=matches_loop, daemon=True)
     matches_thread.start()    
-    builds_manager.refresh()
+    builds_manager.refresh_values()
     
     bot_thread.start()
     bot.run(token)
