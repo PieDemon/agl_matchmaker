@@ -1,5 +1,6 @@
 import os
 import gspread
+from google.oauth2.service_account import Credentials
 
 # 1. Google Sheets Setup
 SHEET_ID = "1BcSxlAv1vOdIXDdnivXHmfsP_tTnv0dzdb0fxCWN2FY"
