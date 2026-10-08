@@ -22,11 +22,27 @@ class CacheManager:
         self.ws = self.sh.worksheet(worksheet)
         self.worksheet_id = self.ws.id
         self.max_columns = columns
+
+        self.records = self.ws.get_all_values() #values allows row/column indexing
+        self.new_records = 0
         
         self.update_queue = {} # {(row, col): value}
 
     def queue_change(self, row, col, value):
         self.update_queue[(row, col)] = value
+
+    #get_all_values returns a list of list which can be indexed by row/column
+    #get_all_records returns a list of dictionaries
+    def refresh_values(self):
+        self.records = self.ws.get_all_values()
+
+    def new_row(self):
+        index = len(self.records) + self.new_records
+        self.new_records = self.new_records + 1
+        return index
+
+    def get_records(self):
+        return self.records
 
     def flush_updates_to_sheet(self):
         if not self.update_queue:
@@ -85,4 +101,6 @@ class CacheManager:
         self.sh.batch_update({"requests": [single_rectangle_request]})
         
         self.update_queue.clear()
+        self.refresh_values()
+        self.new_records = 0
         print("Flush complete.")
