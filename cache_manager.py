@@ -1,3 +1,4 @@
+import os
 import gspread
 
 # 1. Google Sheets Setup
