@@ -31,6 +31,14 @@ standings_manager = CacheManager(
     columns=STANDINGS_TOTAL_COLUMNS
 )
 
+BUILDS_WORKSHEET_NAME = "Builds"
+BUILDS_TOTAL_COLUMNS = 5 
+
+builds_manager = CacheManager(
+    worksheet=BUILDS_WORKSHEET_NAME,
+    columns=BUILDS_TOTAL_COLUMNS
+)
+
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
@@ -68,13 +76,10 @@ def already_played_build(player, build):
         name_condition = (df[p1_name_col] == player) | (df[p2_name_col] == player)
         pool_condition = (df[p1_pool_col] == build) | (df[p2_pool_col] == build)
         
-        # 2. Combine them with the ampersand (&) operator
         matching_rows = df[name_condition & pool_condition]
         
         # 3. Check if *any* row matched the criteria
         return not matching_rows.empty
-
-        #return (((df[p1_name_col] == str(player)) & (df[col2_name] == str(val2))).any()
         
     except Exception as e:
         print(f"Error checking whether players have played: {e}")
@@ -84,14 +89,11 @@ def already_played(val1, val2):
     try:
         records = matches_manager.get_records()
         
-        # 4. Load data into a Pandas DataFrame
         # If your columns have headers, use records[0] as columns, and records[1:] as data
         headers = records[0]
         data = records[1:]
         df = pd.DataFrame(data, columns=headers)
         
-        # 5. Check if the pair exists anywhere in the same row [14]
-        # Replace 'HeaderA' and 'HeaderB' with your actual column names
         col1_name = "Player A"
         col2_name = "Player B"
         
@@ -120,18 +122,14 @@ class ScoreDropdown(discord.ui.Select):
         wins_reported = self.values[0]
         
         try:
-            #sheet = gc.open_by_key(SHEET_ID).worksheet("Matches")
-            
             # Determine column based on player position
             # A wins is Column 4 (D), B wins is Column 7 (G)
             col_num = 4 if self.is_player_a else 7
             matches_manager.queue_change(self.sheet_row, col_num, wins_reported)
-            #sheet.update_cell(self.sheet_row, col_num, wins_reported)
             
             # Update end time column (Column 2 / B) to track when reporting finished
             end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             matches_manager.queue_change(self.sheet_row, 2, end_time)
-            #sheet.update_cell(self.sheet_row, 2, end_time)
             
             # Disable dropdown after selection so they can't double-submit
             self.disabled = True
@@ -152,8 +150,6 @@ class ScoreReportingView(discord.ui.View):
 async def record_match_start(p1_name: str, p2_name: str, p1_matched_pool: str, p2_matched_pool: str) -> int:
     """Inserts a new match record into the 'Matches' sheet and returns its row number."""
     try:
-        #sheet = gc.open_by_key(SHEET_ID).worksheet("Matches")
-        
         # Current timestamp format: 2026-09-14 16:54:22
         start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         row_index = matches_manager.new_row()
@@ -189,11 +185,7 @@ async def can_dm_user(user_id: int) -> bool:
 async def check_if_registered(interaction: discord.Interaction) -> bool:
     """Helper function to verify if a user's Discord ID exists in Column A."""
     try:
-        #sheet = gc.open_by_key(SHEET_ID).worksheet("Standings")
-        
-        # 🎯 Look for the user's ID string strictly in Column 1
         user_id_str = str(interaction.user.id)
-        #cell = sheet.find(user_id_str, in_column=1)
         
         if any(row[0] == user_id_str for row in standings_manager.get_records() if len(row) > 1):
             return True  # User found!
@@ -206,17 +198,12 @@ async def check_if_registered(interaction: discord.Interaction) -> bool:
 async def get_user_activities(player_id: int) -> set:
     """Returns a set of activities (e.g., {'SOS', 'ECL'}) that the user selected 'Yes' for."""
     try:
-        sheet = gc.open_by_key(SHEET_ID).worksheet("Standings")
+        row_index = next((row_num for row_num, row in enumerate(data, start=1) 
+                    if len(row) > 1 and row[1] == player_id), None)
+        row_values = standings_manager.get_records()[row_index]
         
-        # Find the user's row
-        cell = sheet.find(str(player_id), in_column=1)
-        if not cell:
-            return set()
-            
-        row_values = sheet.row_values(cell.row)
-        # Assuming Columns layout: A=ID, B=Name, C=Input, D=SOS, E=MSH, F=ECL, G=TLA
-        # index 3=SOS, 4=MSH, 5=ECL, 6=TLA
-        activities = ["SOS", "MSH", "ECL", "TLA"]
+        # Assuming Columns layout: A=ID, B=Name, C=Input, D=FIN, E=EOE, F=TLA, G=FRA
+        activities = ["FIN", "EOE", "TLA", "FRA"]
         user_yes_activities = set()
         
         for i, activity in enumerate(activities):
@@ -235,10 +222,8 @@ async def get_paired_builds(p1, p2, activity_sets) -> tuple:
     Returns a tuple of two links: (build_1_url, build_2_url).
     """
     try:
-        sheet = gc.open_by_key(SHEET_ID).worksheet("Builds")
-        
         # Fetch all rows from the sheet (skipping headers)
-        all_rows = sheet.get_all_values()[1:]
+        all_rows = builds_manager.get_records()[1:]
         
         # Filter rows matching the desired set (Column C / index 2)
         matching_rows = []
@@ -455,8 +440,6 @@ class RegistrationModal(discord.ui.Modal, title="Complete Registration"):
         self.selections = selections  # Dictionary holding {'SOS': 'Yes'/'No', ...}
 
     async def on_submit(self, interaction: discord.Interaction):
-        user_name = self.name_input.value
-        
         # Count how many "Yes" choices they made
         yes_count = sum(1 for val in self.selections.values() if val == "Yes")
         
@@ -466,44 +449,25 @@ class RegistrationModal(discord.ui.Modal, title="Complete Registration"):
                 ephemeral=True
             )
             return
-
+            
         # Prepare data row for Google Sheets
         # Format: [Discord Username, Custom Name Input, SOS, MSH, ECL, TLA]
-        row_data = [
-            str(interaction.user.id),
-            interaction.user.display_name,
-            user_name,
-            self.selections.get("SOS", "No"),
-            self.selections.get("MSH", "No"),
-            self.selections.get("ECL", "No"),
-            self.selections.get("TLA", "No")
-        ]
+        row_index = standings_manager.new_row()
+        standings_manager.queue_change(row_index,0,str(interaction.user.id))
+        standings_manager.queue_change(row_index,1,interaction.user.display_name)
+        standings_manager.queue_change(row_index,2,self.name_input.value)
+        standings_manager.queue_change(row_index,3,self.selections.get("FIN", "No"))
+        standings_manager.queue_change(row_index,4,self.selections.get("EOE", "No"))
+        standings_manager.queue_change(row_index,5,self.selections.get("TLA", "No"))
+        standings_manager.queue_change(row_index,6,self.selections.get("FRA", "No"))
+        standings_manager.queue_change(row_index,7,f"=SUMIF(Matches!C:C, A{row_index}, Matches!D:D)+SUMIF(Matches!F:F, A{row_index}, Matches!G:G)")
+        standings_manager.queue_change(row_index,8,f"=SUMIF(Matches!C:C, A{row_index}, Matches!I:I)+SUMIF(Matches!F:F, A{row_index}, Matches!J:J)")
+        standings_manager.queue_change(row_index,9,f"=COUNTIF(Matches!C:C, A{row_index})+COUNTIF(Matches!F:F, A{row_index})")
 
-        try:
-            sheet = gc.open_by_key(SHEET_ID).worksheet("Standings")
-        except Exception as e:
-            print(f"Error connecting to Google Sheets: {e}")
-
-        try:
-            response = sheet.append_row(row_data, value_input_option="USER_ENTERED")
-            updated_range = response["updates"]["updatedRange"]
-            new_row_number = updated_range.split("!")[-1].split(":")[0][1:]
-            wins_formula = f"=SUMIF(Matches!C:C, A{new_row_number}, Matches!D:D)+SUMIF(Matches!F:F, A{new_row_number}, Matches!G:G)"
-            sheet.update(range_name=f"H{new_row_number}", values=[[wins_formula]], value_input_option="USER_ENTERED")
-            rp_formula = f"=SUMIF(Matches!C:C, A{new_row_number}, Matches!I:I)+SUMIF(Matches!F:F, A{new_row_number}, Matches!J:J)"
-            sheet.update(range_name=f"I{new_row_number}", values=[[rp_formula]], value_input_option="USER_ENTERED")
-            mp_formula = f"=COUNTIF(Matches!C:C, A{new_row_number})+COUNTIF(Matches!F:F, A{new_row_number})"
-            sheet.update(range_name=f"J{new_row_number}", values=[[mp_formula]], value_input_option="USER_ENTERED")
-            await interaction.response.send_message(
-                f"✅ Thank you, {user_name}! Your participation has been recorded in the spreadsheet.",
-                ephemeral=True
-            )
-        except Exception as e:
-            await interaction.response.send_message(
-                "❌ There was an error saving your data to the spreadsheet. Please contact an admin.",
-                ephemeral=True
-            )
-            print(f"Sheet Write Error: {e}")
+        await interaction.response.send_message(
+            f"✅ Thank you, {user_name}! Your participation has been recorded in the spreadsheet.",
+            ephemeral=True
+        )
 
 # 4. The Activity Dropdown Component
 class ActivityDropdown(discord.ui.Select):
@@ -530,13 +494,13 @@ class ActivityDropdown(discord.ui.Select):
 class ActivitySelectionView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None) # Persistent view
-        self.selections = {"SOS": "No", "MSH": "No", "ECL": "No", "TLA": "No"}
+        self.selections = {"FIN": "No", "EOE": "No", "TLA": "No", "FRA": "No"}
         
         # Add the four dropdowns
-        self.add_item(ActivityDropdown("SOS"))
-        self.add_item(ActivityDropdown("MSH"))
-        self.add_item(ActivityDropdown("ECL"))
+        self.add_item(ActivityDropdown("FIN"))
+        self.add_item(ActivityDropdown("EOE"))
         self.add_item(ActivityDropdown("TLA"))
+        self.add_item(ActivityDropdown("FRA"))
 
     @discord.ui.button(label="Submit & Enter Name", style=discord.ButtonStyle.green, row=4)
     async def submit_button(self, interaction: discord.Interaction, button: discord.ui.Button):
