@@ -513,11 +513,13 @@ async def setup_signup(ctx):
 
 def standings_loop():
     while(true):
-        standings_manager.refresh()
-        sleep(5)
+        standings_manager.flush_updates_to_sheet()
+        standings_manager.refresh_values()
+        sleep(10)
 
 def matches_loop():
     while(true):
+        matches_manager.flush_updates_to_sheet()
         matches_manager.refresh()
         sleep(30)
 
