@@ -520,7 +520,7 @@ def standings_loop():
 def matches_loop():
     while(true):
         matches_manager.flush_updates_to_sheet()
-        matches_manager.refresh()
+        matches_manager.refresh_values()
         sleep(30)
 
 def run_my_bot():
