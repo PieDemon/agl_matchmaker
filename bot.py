@@ -1,8 +1,5 @@
 import discord
 from discord.ext import commands
-import os
-import gspread
-from google.oauth2.service_account import Credentials
 from datetime import datetime
 import pandas as pd
 import random
