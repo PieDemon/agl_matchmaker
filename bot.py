@@ -15,9 +15,21 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-
 MATCHES_WORKSHEET_NAME = "Matches"
 MATCHES_TOTAL_COLUMNS = 10 
+
+matches_manager = CacheManager(
+    worksheet=MATCHES_WORKSHEET_NAME,
+    columns=MATCHES_TOTAL_COLUMNS
+)
+
+STANDINGS_WORKSHEET_NAME = "Standings"
+STANDINGS_TOTAL_COLUMNS = 10 
+
+standings_manager = CacheManager(
+    worksheet=STANDINGS_WORKSHEET_NAME,
+    columns=STANDINGS_TOTAL_COLUMNS
+)
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -43,16 +55,15 @@ gc = gspread.authorize(creds)
 
 def already_played_build(player, build):
     try:
-        sheet = gc.open_by_key(SHEET_ID).worksheet("Matches")
-        records = sheet.get("C:H") 
+        records = matches_manager.get_records()
         headers = records[0]
         data = records[1:]
         df = pd.DataFrame(data, columns=headers)
 
-        p1_name_col = headers[0]
-        p2_name_col = headers[3]
-        p1_pool_col = headers[2]
-        p2_pool_col = headers[5]
+        p1_name_col = "Player A"
+        p2_name_col = "Player B"
+        p1_pool_col = "A pool"
+        p2_pool_col = "B pool"
 
         name_condition = (df[p1_name_col] == player) | (df[p2_name_col] == player)
         pool_condition = (df[p1_pool_col] == build) | (df[p2_pool_col] == build)
@@ -71,8 +82,7 @@ def already_played_build(player, build):
 
 def already_played(val1, val2):
     try:
-        sheet = gc.open_by_key(SHEET_ID).worksheet("Matches")
-        records = sheet.get("C:F") 
+        records = matches_manager.get_records()
         
         # 4. Load data into a Pandas DataFrame
         # If your columns have headers, use records[0] as columns, and records[1:] as data
@@ -82,8 +92,8 @@ def already_played(val1, val2):
         
         # 5. Check if the pair exists anywhere in the same row [14]
         # Replace 'HeaderA' and 'HeaderB' with your actual column names
-        col1_name = headers[0]
-        col2_name = headers[3]
+        col1_name = "Player A"
+        col2_name = "Player B"
         
         exists = (((df[col1_name] == str(val1)) & (df[col2_name] == str(val2))).any() or ((df[col1_name] == str(val2)) & (df[col2_name] == str(val1))).any())
         
@@ -110,16 +120,18 @@ class ScoreDropdown(discord.ui.Select):
         wins_reported = self.values[0]
         
         try:
-            sheet = gc.open_by_key(SHEET_ID).worksheet("Matches")
+            #sheet = gc.open_by_key(SHEET_ID).worksheet("Matches")
             
             # Determine column based on player position
             # A wins is Column 4 (D), B wins is Column 7 (G)
             col_num = 4 if self.is_player_a else 7
-            sheet.update_cell(self.sheet_row, col_num, wins_reported)
+            matches_manager.queue_change(self.sheet_row, col_num, wins_reported)
+            #sheet.update_cell(self.sheet_row, col_num, wins_reported)
             
             # Update end time column (Column 2 / B) to track when reporting finished
             end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            sheet.update_cell(self.sheet_row, 2, end_time)
+            matches_manager.queue_change(self.sheet_row, 2, end_time)
+            #sheet.update_cell(self.sheet_row, 2, end_time)
             
             # Disable dropdown after selection so they can't double-submit
             self.disabled = True
@@ -140,36 +152,23 @@ class ScoreReportingView(discord.ui.View):
 async def record_match_start(p1_name: str, p2_name: str, p1_matched_pool: str, p2_matched_pool: str) -> int:
     """Inserts a new match record into the 'Matches' sheet and returns its row number."""
     try:
-        sheet = gc.open_by_key(SHEET_ID).worksheet("Matches")
+        #sheet = gc.open_by_key(SHEET_ID).worksheet("Matches")
         
         # Current timestamp format: 2026-09-14 16:54:22
         start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        row_index = matches_manager.new_row()
+        arp = f"=D{row_index}-SUMIF(Builds!B:B,E{row_index},Builds!E:E)"
+        brp = f"=G{row_index}-SUMIF(Builds!B:B,H{row_index},Builds!E:E)"
+
+        matches_manager.queue_change(row_index,0,start_time)      # Start time
+        matches_manager.queue_change(row_index,2,p1_name)         # Player A
+        matches_manager.queue_change(row_index,4,p1_matched_pool) # A pool
+        matches_manager.queue_change(row_index,5,p2_name)         # Player B
+        matches_manager.queue_change(row_index,7,p2_matched_pool) # B pool
+        matches_manager.queue_change(row_index,8,arp)             # A formula
+        matches_manager.queue_change(row_index,9,brp)             # B formula
         
-        # Columns: Start time, End time, Player A, A wins, A pool, Player B, B wins, B pool
-        # Leave "End time", "A wins", and "B wins" blank initially
-        row_data = [
-            start_time,   # Start time
-            "",           # End time (Pending)
-            p1_name,      # Player A
-            "",           # A wins (Pending)
-            p1_matched_pool, # A pool
-            p2_name,      # Player B
-            "",           # B wins (Pending)
-            p2_matched_pool  # B pool
-        ]
-        
-        # Append the row and get the row index
-        result = sheet.append_row(row_data)
-        
-        # Parse out the updated range to extract the exact row number
-        # gspread returns a dictionary where updates['updatedRange'] looks like "Matches!A15:H15"
-        updated_range = result.get('updates', {}).get('updatedRange', '')
-        row_num = int(''.join(filter(str.isdigit, updated_range.split(':')[-1])))
-        arp = f"=D{row_num}-SUMIF(Builds!B:B,E{row_num},Builds!E:E)"
-        sheet.update(range_name=f"I{row_num}", values=[[arp]], value_input_option="USER_ENTERED")
-        brp = f"=G{row_num}-SUMIF(Builds!B:B,H{row_num},Builds!E:E)"
-        sheet.update(range_name=f"J{row_num}", values=[[brp]], value_input_option="USER_ENTERED")
-        return row_num
+        return row_index
 
     except Exception as e:
         print(f"Error recording match start: {e}")
@@ -190,13 +189,13 @@ async def can_dm_user(user_id: int) -> bool:
 async def check_if_registered(interaction: discord.Interaction) -> bool:
     """Helper function to verify if a user's Discord ID exists in Column A."""
     try:
-        sheet = gc.open_by_key(SHEET_ID).worksheet("Standings")
+        #sheet = gc.open_by_key(SHEET_ID).worksheet("Standings")
         
         # 🎯 Look for the user's ID string strictly in Column 1
         user_id_str = str(interaction.user.id)
-        cell = sheet.find(user_id_str, in_column=1)
+        #cell = sheet.find(user_id_str, in_column=1)
         
-        if cell:
+        if any(row[0] == user_id_str for row in standings_manager.get_records() if len(row) > 1):
             return True  # User found!
         return False     # User not registered
         
