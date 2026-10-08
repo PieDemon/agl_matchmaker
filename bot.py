@@ -4,6 +4,7 @@ from datetime import datetime
 import pandas as pd
 import random
 from cache_manager import CacheManager
+import threading
 
 # 1. Google Sheets Setup
 SHEET_ID = "1BcSxlAv1vOdIXDdnivXHmfsP_tTnv0dzdb0fxCWN2FY"
@@ -510,9 +511,26 @@ async def setup_signup(ctx):
     )
     await ctx.send(embed=embed, view=ActivitySelectionView())
 
+def standings_loop():
+    while(true):
+        standings_manager.refresh()
+        sleep(5)
+
+def matches_loop():
+    while(true):
+        matches_manager.refresh()
+        sleep(30)
+
 def run_my_bot():
     token = os.environ.get("DISCORD_TOKEN")
     if not token:
         print("ERROR: DISCORD_TOKEN environment variable is missing!")
         return
+    standings_thread = threading.Thread(target=standings_loop, daemon=True)
+    standings_thread.start()    
+    matches_thread = threading.Thread(target=matches_loop, daemon=True)
+    matches_thread.start()    
+    builds_manager.refresh()
+    
+    bot_thread.start()
     bot.run(token)
