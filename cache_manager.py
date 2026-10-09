@@ -87,9 +87,9 @@ class CacheManager:
             "updateCells": {
                 "range": {
                     "sheetId": self.worksheet_id,
-                    "startRowIndex": min_row - 1,    # Inclusive start (0-indexed)
-                    "endRowIndex": max_row,          # Exclusive end
-                    "startColumnIndex": 0,           # Column A
+                    "startRowIndex": min_row,           # Inclusive start (0-indexed), but skip header
+                    "endRowIndex": max_row + 1,         # Exclusive end
+                    "startColumnIndex": 0,              # Column A
                     "endColumnIndex": self.max_columns  # Column J
                 },
                 "rows": rows_payload,
