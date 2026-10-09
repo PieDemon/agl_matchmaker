@@ -6,6 +6,7 @@ import pandas as pd
 import random
 from cache_manager import CacheManager
 import threading
+import time
 
 # 1. Google Sheets Setup
 SHEET_ID = "1BcSxlAv1vOdIXDdnivXHmfsP_tTnv0dzdb0fxCWN2FY"
@@ -516,13 +517,13 @@ def standings_loop():
     while(True):
         print("flushing and refreshing standings")
         standings_manager.flush_updates_to_sheet()
-        sleep(10)
+        time.sleep(15)
 
 def matches_loop():
     while(True):
         print("flushing and refreshing matches")
         matches_manager.flush_updates_to_sheet()
-        sleep(30)
+        time.sleep(31)
 
 def run_my_bot():
     token = os.environ.get("DISCORD_TOKEN")
