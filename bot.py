@@ -192,7 +192,7 @@ async def get_user_activities(player_id: int) -> set:
         row_values = None
         
         for index, row in enumerate(standings_manager.get_records(), start=1):
-            if len(row) > 1 and row[1] == player_id)
+            if (len(row) > 1 and row[1] == player_id):
                 row_values = row
                 break  
         
