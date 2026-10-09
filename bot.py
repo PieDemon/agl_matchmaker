@@ -528,11 +528,17 @@ def run_my_bot():
     if not token:
         print("ERROR: DISCORD_TOKEN environment variable is missing!")
         return
+    
+    print("Starting standings refresher thread")
     standings_thread = threading.Thread(target=standings_loop, daemon=True)
     standings_thread.start()    
+    
+    print("Starting matches refresher thread")
     matches_thread = threading.Thread(target=matches_loop, daemon=True)
     matches_thread.start()    
-    builds_manager.refresh_values()
     
-    bot_thread.start()
+    print("Refreshing builds")
+    builds_manager.refresh_values()
+
+    print("Running bot")
     bot.run(token)
