@@ -513,13 +513,13 @@ async def setup_signup(ctx):
     await ctx.send(embed=embed, view=ActivitySelectionView())
 
 def standings_loop():
-    while(true):
+    while(True):
         print("flushing and refreshing standings")
         standings_manager.flush_updates_to_sheet()
         sleep(10)
 
 def matches_loop():
-    while(true):
+    while(True):
         print("flushing and refreshing matches")
         matches_manager.flush_updates_to_sheet()
         sleep(30)
