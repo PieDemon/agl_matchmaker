@@ -4,7 +4,6 @@ from google.oauth2.service_account import Credentials
 
 # 1. Google Sheets Setup
 SHEET_ID = "1BcSxlAv1vOdIXDdnivXHmfsP_tTnv0dzdb0fxCWN2FY"
-STANDINGS_WORKSHEET_NAME = "Standings"
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
