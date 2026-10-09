@@ -189,9 +189,12 @@ async def check_if_registered(interaction: discord.Interaction) -> bool:
 async def get_user_activities(player_id: int) -> set:
     """Returns a set of activities (e.g., {'SOS', 'ECL'}) that the user selected 'Yes' for."""
     try:
-        row_index = next((row_num for row_num, row in enumerate(standings_manager.get_records(), start=1) 
-                    if len(row) > 1 and row[1] == player_id), None)
-        row_values = standings_manager.get_records()[row_index]
+        row_values = None
+        
+        for index, row in enumerate(standings_manager.get_records(), start=1):
+            if len(row) > 1 and row[1] == player_id)
+                row_values = row
+                break  
         
         # Assuming Columns layout: A=ID, B=Name, C=Input, D=FIN, E=EOE, F=TLA, G=FRA
         activities = ["FIN", "EOE", "TLA", "FRA"]
