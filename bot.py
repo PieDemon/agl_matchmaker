@@ -455,7 +455,7 @@ class RegistrationModal(discord.ui.Modal, title="Complete Registration"):
         standings_manager.queue_change(row_index,9,f"=COUNTIF(Matches!C:C, A{row_index})+COUNTIF(Matches!F:F, A{row_index})")
 
         await interaction.response.send_message(
-            f"✅ Thank you, {user_name}! Your participation has been recorded in the spreadsheet.",
+            f"✅ Thank you! Your participation has been recorded. Please wait up to 15 seconds for it to reflect on the spreadsheet before queueing.",
             ephemeral=True
         )
 
