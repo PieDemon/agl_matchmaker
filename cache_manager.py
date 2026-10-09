@@ -64,7 +64,7 @@ class CacheManager:
             row_cells = [{} for _ in range(self.max_columns)]
             
             # Populate cells ONLY if we have an active queued update for this exact row
-            for col in range(1, self.max_columns + 1):
+            for col in range(0, self.max_columns):
                 if (current_row, col) in self.update_queue:
                     value = self.update_queue[(current_row, col)]
                     if isinstance(value, str) and value.startswith('='):
@@ -73,7 +73,7 @@ class CacheManager:
                         val_type = "numberValue"
                     else:
                         val_type = "stringValue"
-                    row_cells[col - 1] = {
+                    row_cells[col] = {
                         "userEnteredValue": {
                             val_type: value
                         }
