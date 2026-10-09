@@ -516,14 +516,12 @@ def standings_loop():
     while(true):
         print("flushing and refreshing standings")
         standings_manager.flush_updates_to_sheet()
-        standings_manager.refresh_values()
         sleep(10)
 
 def matches_loop():
     while(true):
         print("flushing and refreshing matches")
         matches_manager.flush_updates_to_sheet()
-        matches_manager.refresh_values()
         sleep(30)
 
 def run_my_bot():
