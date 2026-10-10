@@ -192,9 +192,8 @@ async def get_user_activities(player_id: int) -> set:
         print(f"getting user activities for {player_id}")
         row_values = None
         
-        for index, row in enumerate(standings_manager.get_records(), start=1):
-            if (row and len(row) > 1 and row[0] == player_id):
-                print(f"matched on row {index}")
+        for row in standings_manager.get_records():
+            if (len(row) > 1 and row[0] == player_id):
                 row_values = row
                 break  
         
