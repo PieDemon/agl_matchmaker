@@ -192,7 +192,7 @@ async def get_user_activities(player_id: int) -> set:
         row_values = None
         
         for index, row in enumerate(standings_manager.get_records(), start=1):
-            if (len(row) > 1 and row[1] == player_id):
+            if (row and len(row) > 1 and row[0] == player_id):
                 row_values = row
                 break  
         
@@ -202,7 +202,7 @@ async def get_user_activities(player_id: int) -> set:
         
         for i, activity in enumerate(activities):
             # Safe check in case row_values is shorter than expected
-            if len(row_values) > (3 + i) and row_values[3 + i] == "Yes":
+            if row_values and len(row_values) > (3 + i) and row_values[3 + i] == "Yes":
                 user_yes_activities.add(activity)
                 
         return user_yes_activities
