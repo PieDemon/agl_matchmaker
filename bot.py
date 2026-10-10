@@ -189,10 +189,12 @@ async def check_if_registered(interaction: discord.Interaction) -> bool:
 async def get_user_activities(player_id: int) -> set:
     """Returns a set of activities (e.g., {'SOS', 'ECL'}) that the user selected 'Yes' for."""
     try:
+        print(f"getting user activities for {player_id}")
         row_values = None
         
         for index, row in enumerate(standings_manager.get_records(), start=1):
             if (row and len(row) > 1 and row[0] == player_id):
+                print(f"matched on row {index}")
                 row_values = row
                 break  
         
@@ -203,6 +205,7 @@ async def get_user_activities(player_id: int) -> set:
         for i, activity in enumerate(activities):
             # Safe check in case row_values is shorter than expected
             if row_values and len(row_values) > (3 + i) and row_values[3 + i] == "Yes":
+                print(f"matched on {activity}")
                 user_yes_activities.add(activity)
                 
         return user_yes_activities
