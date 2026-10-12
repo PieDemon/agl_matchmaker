@@ -196,6 +196,8 @@ async def get_user_activities(player_id: int) -> set:
             print(f"debug: entered loop, row[0]: {row[0]}")
             for v in row:
                 print(f"debug: {v}")
+
+            print(f"debug: len(row): {len(row)}; should be true: {row[0] == player_id}")
             if (len(row) > 1 and row[0] == player_id):
                 print("debug: matched")
                 row_values = row
