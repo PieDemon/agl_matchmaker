@@ -205,7 +205,7 @@ async def get_user_activities(player_id: int) -> set:
                # if line[0] in ['+', '-']:
                   #  print(repr(line))
             
-            if (len(row) > 1 and int(row[0]) == player_id):
+            if (len(row) > 1 and row[0] == str(player_id)):
                 print("debug: matched")
                 row_values = row
                 break  
