@@ -197,6 +197,7 @@ async def get_user_activities(player_id: int) -> set:
             for v in row:
                 print(f"debug: {v}")
             if (len(row) > 1 and row[0] == player_id):
+                print("debug: matched")
                 row_values = row
                 break  
         
@@ -205,6 +206,7 @@ async def get_user_activities(player_id: int) -> set:
         user_yes_activities = set()
         
         for i, activity in enumerate(activities):
+            print(f"debug: checking {activity}")
             # Safe check in case row_values is shorter than expected
             if row_values and len(row_values) > (3 + i) and row_values[3 + i] == "Yes":
                 print(f"matched on {activity}")
