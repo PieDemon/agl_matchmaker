@@ -193,7 +193,7 @@ async def get_user_activities(player_id: int) -> set:
         row_values = None
         
         for row in standings_manager.get_records():
-            print("debug: entered loop")
+            print(f"debug: entered loop, row[0]: {row[0]}")
             for v in row:
                 print(f"debug: {v}")
             if (len(row) > 1 and row[0] == player_id):
