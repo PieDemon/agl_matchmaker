@@ -7,6 +7,8 @@ import random
 from cache_manager import CacheManager
 import threading
 import time
+#temporary for debug purposes
+#import difflib
 
 # 1. Google Sheets Setup
 SHEET_ID = "1BcSxlAv1vOdIXDdnivXHmfsP_tTnv0dzdb0fxCWN2FY"
@@ -198,7 +200,12 @@ async def get_user_activities(player_id: int) -> set:
                 print(f"debug: {v}")
 
             print(f"debug: len(row): {len(row)}; should be true: {row[0] == player_id}")
-            if (len(row) > 1 and row[0] == player_id):
+
+            #for line in difflib.ndiff(row[0], player_id):
+               # if line[0] in ['+', '-']:
+                  #  print(repr(line))
+            
+            if (len(row) > 1 and int(row[0]) == player_id):
                 print("debug: matched")
                 row_values = row
                 break  
