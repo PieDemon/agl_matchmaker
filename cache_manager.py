@@ -76,7 +76,7 @@ class CacheManager:
             for (row,col) in self.update_queue.keys():
                 if row and col:
                     cell_id = gspread.utils.rowcol_to_a1(row, col + 1)
-                    print(f"DEBUG: pushing update for row {row} col {col} value {self.update_queue[(row, col)} to cell {cell_id}")
+                    print(f"DEBUG: pushing update for row {row} col {col} value {self.update_queue[(row, col)]} to cell {cell_id}")
                     updates.append({'range': self.worksheet_name + "!" + cell_id, 'values': [[self.update_queue[(row, col)]]]})
     
             self.update_queue.clear()
