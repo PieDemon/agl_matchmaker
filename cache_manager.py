@@ -48,6 +48,7 @@ class CacheManager:
         for row in reversed(self.records):
             # Check if the row contains anything other than empty strings
             if any(cell.strip() for cell in row):
+                print(f"debug: nonempty cell in row {last_row_index} with contents |{cell}|")
                 break
             last_row_index -= 1
         
@@ -69,9 +70,8 @@ class CacheManager:
             updates = []
     
             for (row,col) in self.update_queue.keys():
-                print(f"row: {row}; col: {col}")
                 if row and col:
-                    cell_id = gspread.utils.rowcol_to_a1(row, col)
+                    cell_id = gspread.utils.rowcol_to_a1(row, col + 1)
                     updates.append({'range': self.worksheet_name + "!" + cell_id, 'values': [[self.update_queue[(row, col)]]]})
     
             self.update_queue.clear()
