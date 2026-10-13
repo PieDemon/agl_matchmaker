@@ -43,7 +43,16 @@ class CacheManager:
     def new_row(self):
         while(self.update_in_progress):
             time.sleep(1)
-        index = len(self.records) + self.new_records
+
+        last_row_index = len(self.records)
+        for row in reversed(self.records):
+            # Check if the row contains anything other than empty strings
+            if any(cell.strip() for cell in row):
+                break
+            last_row_index -= 1
+        
+        first_empty_row = last_row_index + 1
+        index = first_empty_row + self.new_records
         self.new_records = self.new_records + 1
         return index
 
