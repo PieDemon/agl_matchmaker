@@ -2,6 +2,9 @@ import os
 import gspread
 from google.oauth2.service_account import Credentials
 
+#for debugging
+import pprint
+
 # 1. Google Sheets Setup
 SHEET_ID = "1BcSxlAv1vOdIXDdnivXHmfsP_tTnv0dzdb0fxCWN2FY"
 SCOPES = [
@@ -99,6 +102,7 @@ class CacheManager:
 
         # 4. Ship the single request to the API
         print(f"Sending exactly 1 rectangular request covering rows {min_row} to {max_row}...")
+        pprint.pprint(single_rectangle_request)
         self.sh.batch_update({"requests": [single_rectangle_request]})
         
         self.update_queue.clear()
