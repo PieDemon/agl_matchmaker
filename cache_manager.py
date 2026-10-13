@@ -52,58 +52,78 @@ class CacheManager:
         if not self.update_queue:
             print("No pending updates to flush.")
             return
+
+#worksheet.batch_update([
+#    {
+#        'range': 'A2',
+#        'values': [['New Data A2']],
+#    },
+#    {
+#        'range': 'C5',
+#        'values': [['New Data C5']],
+#    }
+#])
+
+        updates = []
+
+        for (row,col) in self.update_queue.keys():
+            cell_id = gspread.utils.rowcol_to_a1(row, col)
+            updates.append({'range': cell_id, 'values': [[self.update_queue[(row, col)]]])
+
+        pprint.pprint(updates)
+        self.sh.batch_update(updates)
         
         # 1. Determine the absolute boundaries of our single rectangle
-        all_rows = [row for (row, col) in self.update_queue.keys()]
-        min_row = min(all_rows)
-        max_row = max(all_rows)
+#        all_rows = [row for (row, col) in self.update_queue.keys()]
+#        min_row = min(all_rows)
+#        max_row = max(all_rows)
 
         # 2. Build the grid of rows for this rectangle
-        rows_payload = []
+#        rows_payload = []
         
         # Loop sequentially through every single row from the top to bottom of our box
-        for current_row in range(min_row, max_row + 1):
+#        for current_row in range(min_row, max_row + 1):
             # Create a blank row template filled with 10 empty cell dicts (skips by default)
-            row_cells = [{} for _ in range(self.max_columns)]
+#            row_cells = [{} for _ in range(self.max_columns)]
             
             # Populate cells ONLY if we have an active queued update for this exact row
-            for col in range(0, self.max_columns):
-                if (current_row, col) in self.update_queue:
-                    value = self.update_queue[(current_row, col)]
-                    if isinstance(value, str) and value.startswith('='):
-                        val_type = "formulaValue"
-                    elif isinstance(value, (int, float)):
-                        val_type = "numberValue"
-                    else:
-                        val_type = "stringValue"
-                    row_cells[col] = {
-                        "userEnteredValue": {
-                            val_type: value
-                        }
-                    }
+#            for col in range(0, self.max_columns):
+#                if (current_row, col) in self.update_queue:
+#                    value = self.update_queue[(current_row, col)]
+#                    if isinstance(value, str) and value.startswith('='):
+#                        val_type = "formulaValue"
+#                    elif isinstance(value, (int, float)):
+#                        val_type = "numberValue"
+#                    else:
+#                        val_type = "stringValue"
+#                    row_cells[col] = {
+#                        "userEnteredValue": {
+#                            val_type: value
+#                        }
+#                    }
             
             # Add this row's array to our grid
-            rows_payload.append({"values": row_cells})
+#            rows_payload.append({"values": row_cells})
 
         # 3. Construct exactly ONE updateCells block covering the whole bounding box
-        single_rectangle_request = {
-            "updateCells": {
-                "range": {
-                    "sheetId": self.worksheet_id,
-                    "startRowIndex": min_row,           # Inclusive start (0-indexed), but skip header
-                    "endRowIndex": max_row + 1,         # Exclusive end
-                    "startColumnIndex": 0,              # Column A
-                    "endColumnIndex": self.max_columns  # Column J
-                },
-                "rows": rows_payload,
-                "fields": "userEnteredValue"         # Tells Google to ignore all the {} cells
-            }
-        }
+#        single_rectangle_request = {
+#            "updateCells": {
+#                "range": {
+#                    "sheetId": self.worksheet_id,
+#                    "startRowIndex": min_row,           # Inclusive start (0-indexed), but skip header
+#                    "endRowIndex": max_row + 1,         # Exclusive end
+#                    "startColumnIndex": 0,              # Column A
+#                    "endColumnIndex": self.max_columns  # Column J
+#                },
+#                "rows": rows_payload,
+#                "fields": "userEnteredValue"         # Tells Google to ignore all the {} cells
+#            }
+#        }
 
         # 4. Ship the single request to the API
-        print(f"Sending exactly 1 rectangular request covering rows {min_row} to {max_row}...")
-        pprint.pprint(single_rectangle_request)
-        self.sh.batch_update({"requests": [single_rectangle_request]})
+#        print(f"Sending exactly 1 rectangular request covering rows {min_row} to {max_row}...")
+#        pprint.pprint(single_rectangle_request)
+#        self.sh.batch_update({"requests": [single_rectangle_request]})
         
         self.update_queue.clear()
         self.refresh_values()
