@@ -68,7 +68,7 @@ class CacheManager:
 
         for (row,col) in self.update_queue.keys():
             cell_id = gspread.utils.rowcol_to_a1(row, col)
-            updates.append({'range': cell_id, 'values': [[self.update_queue[(row, col)]]])
+            updates.append({'range': cell_id, 'values': [[self.update_queue[(row, col)]]]})
 
         pprint.pprint(updates)
         self.sh.batch_update(updates)
