@@ -48,7 +48,11 @@ class CacheManager:
         for row in reversed(self.records):
             # Check if the row contains anything other than empty strings
             if any(cell.strip() for cell in row):
-                print(f"debug: nonempty cell in row {last_row_index} with contents |{cell}|")
+                index = 0
+                for cell in row:
+                    if cell.strip():
+                        print(f"debug: nonempty cell in row {last_row_index} with contents |{cell}|")
+                    index = index + 1
                 break
             last_row_index -= 1
         
