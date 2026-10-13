@@ -72,8 +72,8 @@ class CacheManager:
                 cell_id = gspread.utils.rowcol_to_a1(row, col)
                 updates.append({'range': cell_id, 'values': [[self.update_queue[(row, col)]]]})
 
-        pprint.pprint(updates)
-        self.sh.batch_update(updates)
+        pprint.pprint({"data": updates})
+        self.sh.values_batch_update({"data": updates})
         
         # 1. Determine the absolute boundaries of our single rectangle
 #        all_rows = [row for (row, col) in self.update_queue.keys()]
