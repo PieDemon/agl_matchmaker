@@ -28,7 +28,7 @@ class CacheManager:
         self.records = self.ws.get_all_values() #values allows row/column indexing
         self.new_records = 0
         self.update_queue = {} # {(row, col): value}
-        self.update_in_progress = false
+        self.update_in_progress = False
 
     def queue_change(self, row, col, value):
         while(self.update_in_progress):
@@ -55,7 +55,7 @@ class CacheManager:
             print("No pending updates to flush.")
             return
         try:
-            self.update_in_progress = true
+            self.update_in_progress = True
     
             updates = []
     
@@ -70,5 +70,5 @@ class CacheManager:
             self.sh.values_batch_update({"valueInputOption": "USER_ENTERED", "data": updates})
             self.refresh_values()
         finally:
-            self.update_in_progress = false
+            self.update_in_progress = False
         print("Flush complete.")
