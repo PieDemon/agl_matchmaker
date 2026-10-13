@@ -7,10 +7,7 @@ import random
 from cache_manager import CacheManager
 import threading
 import time
-#temporary for debug purposes
-#import difflib
 
-# 1. Google Sheets Setup
 SHEET_ID = "1BcSxlAv1vOdIXDdnivXHmfsP_tTnv0dzdb0fxCWN2FY"
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -46,12 +43,9 @@ intents.message_content = True
 intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Global queue list
 queue = []
 processing_players = set()
 
-# ID of the dedicated channel where match logs and status updates go
-# You will set this via the command inside Discord!
 STATUS_CHANNEL_ID = None 
 
 def already_played_build(player, build):
@@ -71,7 +65,6 @@ def already_played_build(player, build):
         
         matching_rows = df[name_condition & pool_condition]
         
-        # 3. Check if *any* row matched the criteria
         return not matching_rows.empty
         
     except Exception as e:
@@ -191,22 +184,10 @@ async def check_if_registered(interaction: discord.Interaction) -> bool:
 async def get_user_activities(player_id: int) -> set:
     """Returns a set of activities (e.g., {'SOS', 'ECL'}) that the user selected 'Yes' for."""
     try:
-        print(f"getting user activities for {player_id}")
         row_values = None
         
         for row in standings_manager.get_records():
-            print(f"debug: entered loop, row[0]: {row[0]}")
-            for v in row:
-                print(f"debug: {v}")
-
-            print(f"debug: len(row): {len(row)}; should be true: {row[0] == player_id}")
-
-            #for line in difflib.ndiff(row[0], player_id):
-               # if line[0] in ['+', '-']:
-                  #  print(repr(line))
-            
             if (len(row) > 1 and row[0] == str(player_id)):
-                print("debug: matched")
                 row_values = row
                 break  
         
