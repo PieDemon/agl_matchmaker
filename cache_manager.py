@@ -2,9 +2,6 @@ import os
 import gspread
 from google.oauth2.service_account import Credentials
 
-#for debugging
-import pprint
-
 # 1. Google Sheets Setup
 SHEET_ID = "1BcSxlAv1vOdIXDdnivXHmfsP_tTnv0dzdb0fxCWN2FY"
 SCOPES = [
@@ -62,7 +59,6 @@ class CacheManager:
                 cell_id = gspread.utils.rowcol_to_a1(row, col)
                 updates.append({'range': self.worksheet_name + "!" + cell_id, 'values': [[self.update_queue[(row, col)]]]})
 
-        pprint.pprint(updates)
         self.sh.values_batch_update({"valueInputOption": "USER_ENTERED", "data": updates})
         self.update_queue.clear()
         self.refresh_values()
