@@ -1,5 +1,6 @@
 import os
 import gspread
+import time
 from google.oauth2.service_account import Credentials
 
 # 1. Google Sheets Setup
@@ -24,13 +25,14 @@ class CacheManager:
         self.ws = self.sh.worksheet(worksheet)
         self.worksheet_id = self.ws.id
         self.max_columns = columns
-
         self.records = self.ws.get_all_values() #values allows row/column indexing
         self.new_records = 0
-        
         self.update_queue = {} # {(row, col): value}
+        self.update_in_progress = false
 
     def queue_change(self, row, col, value):
+        while(self.update_in_progress):
+            time.sleep(1)
         self.update_queue[(row, col)] = value
 
     #get_all_values returns a list of list which can be indexed by row/column
@@ -39,6 +41,8 @@ class CacheManager:
         self.records = self.ws.get_all_values()
 
     def new_row(self):
+        while(self.update_in_progress):
+            time.sleep(1)
         index = len(self.records) + self.new_records
         self.new_records = self.new_records + 1
         return index
@@ -50,18 +54,21 @@ class CacheManager:
         if not self.update_queue:
             print("No pending updates to flush.")
             return
-
-        updates = []
-
-        for (row,col) in self.update_queue.keys():
-            print(f"row: {row}; col: {col}")
-            if row and col:
-                cell_id = gspread.utils.rowcol_to_a1(row, col)
-                updates.append({'range': self.worksheet_name + "!" + cell_id, 'values': [[self.update_queue[(row, col)]]]})
-
-        self.update_queue.clear()
-        self.new_records = 0
-
-        self.sh.values_batch_update({"valueInputOption": "USER_ENTERED", "data": updates})
-        self.refresh_values()
+        try:
+            self.update_in_progress = true
+    
+            updates = []
+    
+            for (row,col) in self.update_queue.keys():
+                print(f"row: {row}; col: {col}")
+                if row and col:
+                    cell_id = gspread.utils.rowcol_to_a1(row, col)
+                    updates.append({'range': self.worksheet_name + "!" + cell_id, 'values': [[self.update_queue[(row, col)]]]})
+    
+            self.update_queue.clear()
+            self.new_records = 0
+            self.sh.values_batch_update({"valueInputOption": "USER_ENTERED", "data": updates})
+            self.refresh_values()
+        finally:
+            self.update_in_progress = false
         print("Flush complete.")
