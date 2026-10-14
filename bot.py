@@ -3,7 +3,7 @@ import discord
 from discord.ext import commands
 from datetime import datetime
 import pandas as pd
-import random
+#import random
 from cache_manager import CacheManager
 import threading
 import time
@@ -91,9 +91,10 @@ def already_played(val1, val2):
         return None
 
 class ScoreDropdown(discord.ui.Select):
-    def __init__(self, sheet_row: int, is_player_a: bool):
+    def __init__(self, sheet_row: int, is_player_a: bool, channel_name: string):
         self.sheet_row = sheet_row
         self.is_player_a = is_player_a  # True if they are Player A, False if Player B
+        self.channel_name = channel_name
         
         options = [
             discord.SelectOption(label="0 Wins", value="0", description="I won 0 games"),
@@ -119,8 +120,12 @@ class ScoreDropdown(discord.ui.Select):
             
             # Disable dropdown after selection so they can't double-submit
             self.disabled = True
+
+            target_channel = discord.utils.get(interaction.guild.text_channels, name=self.channel_name)
+            await target_channel.set_permissions(interaction.user, read_messages=True, send_messages=True)
+            
             await interaction.edit_original_response(
-                content=f"✅ **Results Submitted!** Your score of **{wins_reported} wins** has been logged.",
+                content=f"✅ **Results Submitted!** Your score of **{wins_reported} wins** has been logged. You have also been added to {target_channel.mention} if you would like to discuss the match.",
                 view=self.view
             )
             
@@ -129,9 +134,9 @@ class ScoreDropdown(discord.ui.Select):
             await interaction.followup.send("❌ An error occurred while writing your score to the spreadsheet.", ephemeral=True)
 
 class ScoreReportingView(discord.ui.View):
-    def __init__(self, sheet_row: int, is_player_a: bool):
+    def __init__(self, sheet_row: int, is_player_a: bool, channel_name: string):
         super().__init__(timeout=None) # Keeps the buttons functional indefinitely
-        self.add_item(ScoreDropdown(sheet_row, is_player_a))
+        self.add_item(ScoreDropdown(sheet_row, is_player_a, channel_name))
 
 async def record_match_start(p1_name: str, p2_name: str, p1_matched_pool: str, p2_matched_pool: str) -> int:
     """Inserts a new match record into the 'Matches' sheet and returns its row number."""
@@ -207,7 +212,7 @@ async def get_user_activities(player_id: int) -> set:
         print(f"Error fetching user activities: {e}")
         return set()
 
-async def get_paired_builds(p1, p2, activity_sets) -> tuple:
+async def get_paired_builds(p1, p2, activity_sets) -> dict:
     """
     Finds a random pair of rows from the 'Builds' tab matching the given set.
     Returns a tuple of two links: (build_1_url, build_2_url).
@@ -215,35 +220,18 @@ async def get_paired_builds(p1, p2, activity_sets) -> tuple:
     try:
         # Fetch all rows from the sheet (skipping headers)
         all_rows = builds_manager.get_records()[1:]
-        
-        # Filter rows matching the desired set (Column C / index 2)
-        matching_rows = []
-        for row in all_rows:
-            for activity_set in activity_sets:
-                if len(row) >= 3 and row[2].strip().upper() == activity_set.upper():
-                    # We want the 'Build' link which is in Column B (index 1)
-                    matching_rows.append(row[1])
-        
-        # Ensure we have at least one complete pair (2 rows)
-        if len(matching_rows) < 2:
-            print(f"Warning: Not enough builds found for set '{activity_set}'. Found {len(matching_rows)}")
-            return None, None
-            
-        # Group adjacent matching rows into explicit pairs
-        # (e.g. index 0 & 1 is Pair 1, index 2 & 3 is Pair 2)
-        pairs = []
-        for i in range(0, len(matching_rows) - 1, 2):
-            if(already_played_build(p1, matching_rows[i]) or already_played_build(p2, matching_rows[i])):
-                continue
-            pairs.append((matching_rows[i], matching_rows[i+1]))
-            
-        if not pairs:
-            return None, None
-            
-        # Select one pair at random
-        selected_pair = random.choice(pairs)
-        return selected_pair
-        
+        valid_match = {}
+        channel_index = 0
+        for row_a,row_b in batched(all_rows,2):
+            if len(row_a) >= 3 and len(row_b) >=3:
+                set_code = row_a[2].strip().upper()
+                if set_code in activity_sets:
+                    if not (already_played_build(p1, row_a) or already_played_build(p2, row_a)):
+                        valid_match["channel"] = set_code + "-" + str((channel_index % 6) + 1)
+                        valid_match["p1_build"] = row_a[1]
+                        valid_match["p2_build"] = row_b[1]
+            channel_index = channel_index + 1
+        return valid_match                  
     except Exception as e:
         print(f"Error fetching paired builds: {e}")
         return None, None
@@ -306,6 +294,7 @@ class MatchmakingView(discord.ui.View):
         
             # Matchmaking loop
             opponent_id = None
+            paired_build = {}
             
             for queued_player_id in queue:
                 if already_played(player_id, queued_player_id):
@@ -317,13 +306,13 @@ class MatchmakingView(discord.ui.View):
                 if shared_activities:
                     opponent_id = queued_player_id
                     # Grab the first matching activity name (e.g., 'SOS')
-                    build_p1, build_p2 = await get_paired_builds(str(player_id), str(opponent_id), list(shared_activities))
+                    paired_build = await get_paired_builds(str(player_id), str(opponent_id), list(shared_activities))
                     break
         
             status_channel = bot.get_channel(STATUS_CHANNEL_ID) if STATUS_CHANNEL_ID else None
         
             # 6. Handle Matchmaking Results
-            if opponent_id and build_p1 and build_p2: 
+            if opponent_id and paired_build: 
                 queue.remove(opponent_id)
                 await interaction.followup.send("🔄 Match found! Generating alerts and builds...", ephemeral=True)
                 
@@ -333,7 +322,7 @@ class MatchmakingView(discord.ui.View):
                 p2_name = str(opponent_id)
                 
                 # 📝 WRITE TO GOOGLE SHEETS & CAPTURE ROW ID
-                match_row = await record_match_start(p1_name, p2_name, build_p1, build_p2)
+                match_row = await record_match_start(p1_name, p2_name, paired_build["p1_build"], paired_build["p2_build"])
                 
                 if status_channel:
                     await status_channel.send(
@@ -342,11 +331,11 @@ class MatchmakingView(discord.ui.View):
                     
                 # Deliver Build + Score Dropdown to Player 1 (Player A)
                 try:
-                    p1_view = ScoreReportingView(sheet_row=match_row, is_player_a=True)
+                    p1_view = ScoreReportingView(sheet_row=match_row, is_player_a=True, channel_name=paired_build["channel"])
                     await interaction.user.send(
                         content=(
                             f"⚔️ Your match is ready!\n"
-                            f"🔗 **Your Build Link:** {build_p1 if build_p1 else 'No link found'}\n\n"
+                            f"🔗 **Your Build Link:** {paired_build["p1_build"] if paired_build["p1_build"] else 'No link found'}\n\n"
                             f"🏆 **Report Results:** Once you finish playing all 3 games, select your total wins using the dropdown below:"
                         ),
                         view=p1_view
@@ -360,7 +349,7 @@ class MatchmakingView(discord.ui.View):
                     await opponent_user.send(
                         content=(
                             f"⚔️ Your match is ready!\n"
-                            f"🔗 **Your Build Link:** {build_p2 if build_p2 else 'No link found'}\n\n"
+                            f"🔗 **Your Build Link:** {paired_build["p2_build"] if paired_build["p2_build"] else 'No link found'}\n\n"
                             f"🏆 **Report Results:** Once you finish playing all 3 games, select your total wins using the dropdown below:"
                         ),
                         view=p2_view
