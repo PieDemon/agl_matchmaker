@@ -416,51 +416,6 @@ async def setup_matchmaking(ctx, status_channel: discord.TextChannel):
     )
     await ctx.send(embed=embed, view=MatchmakingView())
 
-# 3. The Registration Modal (Phase 2)
-class RegistrationModal(discord.ui.Modal, title="Complete Registration"):
-    name_input = discord.ui.TextInput(
-        label="Your Name & Tag",
-        placeholder="Arthur R // bionicbunny#12345",
-        style=discord.TextStyle.short,
-        required=True,
-        max_length=100
-    )
-
-    def __init__(self, selections):
-        super().__init__()
-        self.selections = selections  # Dictionary holding {'SOS': 'Yes'/'No', ...}
-
-    async def on_submit(self, interaction: discord.Interaction):
-        # Count how many "Yes" choices they made
-        yes_count = sum(1 for val in self.selections.values() if val == "Yes")
-        
-        if yes_count < 2:
-            await interaction.response.send_message(
-                f"❌ Registration failed. You must select **Yes** for at least 2 activities. (You selected {yes_count})",
-                ephemeral=True
-            )
-            return
-            
-        # Prepare data row for Google Sheets
-        # Format: [Discord Username, Custom Name Input, SOS, MSH, ECL, TLA]
-        row_index = standings_manager.new_row()
-        standings_manager.queue_change(row_index,0,str(interaction.user.id))
-        standings_manager.queue_change(row_index,1,interaction.user.display_name)
-        standings_manager.queue_change(row_index,2,self.name_input.value)
-        standings_manager.queue_change(row_index,3,self.selections.get("FIN", "No"))
-        standings_manager.queue_change(row_index,4,self.selections.get("EOE", "No"))
-        standings_manager.queue_change(row_index,5,self.selections.get("TLA", "No"))
-        standings_manager.queue_change(row_index,6,self.selections.get("FRA", "No"))
-        standings_manager.queue_change(row_index,7,f"=SUMIF(Matches!C:C, A{row_index}, Matches!D:D)+SUMIF(Matches!F:F, A{row_index}, Matches!G:G)")
-        standings_manager.queue_change(row_index,8,f"=SUMIF(Matches!C:C, A{row_index}, Matches!I:I)+SUMIF(Matches!F:F, A{row_index}, Matches!J:J)")
-        standings_manager.queue_change(row_index,9,f"=COUNTIF(Matches!C:C, A{row_index})+COUNTIF(Matches!F:F, A{row_index})")
-
-        await interaction.response.send_message(
-            f"✅ Thank you! Your participation has been recorded. Please wait up to 15 seconds for it to reflect on the spreadsheet before queueing.",
-            ephemeral=True
-        )
-
-# 4. The Activity Dropdown Component
 class ActivityDropdown(discord.ui.Select):
     def __init__(self, activity_name):
         self.activity_name = activity_name
@@ -493,12 +448,49 @@ class ActivitySelectionView(discord.ui.View):
         self.add_item(ActivityDropdown("TLA"))
         self.add_item(ActivityDropdown("FRA"))
 
-    @discord.ui.button(label="Submit & Enter Name", style=discord.ButtonStyle.green, row=4)
-    async def submit_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Open the name modal and pass the selections down to it
-        await interaction.response.send_modal(RegistrationModal(self.selections))
+    @discord.ui.button(label="Submit", style=discord.ButtonStyle.green, row=4)
+    async def on_submit(self, interaction: discord.Interaction):
+        # Count how many "Yes" choices they made
+        yes_count = sum(1 for val in self.selections.values() if val == "Yes")
+        
+        if yes_count < 2:
+            await interaction.response.send_message(
+                f"❌ Registration failed. You must select **Yes** for at least 2 activities. (You selected {yes_count})",
+                ephemeral=True
+            )
+            return
+            
+        # Prepare data row for Google Sheets
+        # Format: [Discord Username, Custom Name Input, SOS, MSH, ECL, TLA]
+        row_index = standings_manager.new_row()
+        standings_manager.queue_change(row_index,0,str(interaction.user.id))
+        standings_manager.queue_change(row_index,1,interaction.user.display_name)
+        standings_manager.queue_change(row_index,2,self.name_input.value)
+        standings_manager.queue_change(row_index,3,self.selections.get("FIN", "No"))
+        standings_manager.queue_change(row_index,4,self.selections.get("EOE", "No"))
+        standings_manager.queue_change(row_index,5,self.selections.get("TLA", "No"))
+        standings_manager.queue_change(row_index,6,self.selections.get("FRA", "No"))
+        standings_manager.queue_change(row_index,7,f"=SUMIF(Matches!C:C, A{row_index}, Matches!D:D)+SUMIF(Matches!F:F, A{row_index}, Matches!G:G)")
+        standings_manager.queue_change(row_index,8,f"=SUMIF(Matches!C:C, A{row_index}, Matches!I:I)+SUMIF(Matches!F:F, A{row_index}, Matches!J:J)")
+        standings_manager.queue_change(row_index,9,f"=COUNTIF(Matches!C:C, A{row_index})+COUNTIF(Matches!F:F, A{row_index})")
 
-# 6. Command to deploy the interface
+        await interaction.response.send_message(
+            f"✅ Thank you! Your participation has been recorded. Please wait up to 15 seconds for it to reflect on the spreadsheet before queueing.",
+            ephemeral=True
+        )
+
+class LaunchView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None) # Persistent button
+
+    @discord.ui.button(label="Click to Register", style=discord.ButtonStyle.primary)
+    async def open_form(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message(
+            "Please make your selections below:",
+            view=ActivitySelectionView(),
+            ephemeral=True 
+        )
+
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def setup_signup(ctx):
@@ -511,7 +503,7 @@ async def setup_signup(ctx):
         ),
         color=discord.Color.blue()
     )
-    await ctx.send(embed=embed, view=ActivitySelectionView())
+    await ctx.send(embed=embed, view=LaunchView())
 
 def standings_loop():
     while(True):
