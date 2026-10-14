@@ -486,7 +486,8 @@ class LaunchView(discord.ui.View):
     @discord.ui.button(label="Click to Register", style=discord.ButtonStyle.primary)
     async def open_form(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message(
-            "Please make your selections below:",
+            "Please select your participation status for the activities below.\n"
+            "⚠️ **Requirement:** You must opt into **at least two (2)** activities.\n\n",
             view=ActivitySelectionView(),
             ephemeral=True 
         )
@@ -494,15 +495,15 @@ class LaunchView(discord.ui.View):
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def setup_signup(ctx):
-    embed = discord.Embed(
-        title="🌟 Tournament Activity Registration",
-        description=(
-            "Please select your participation status for the activities below.\n"
-            "⚠️ **Requirement:** You must opt into **at least two (2)** activities.\n\n"
-            "Once selections are made, click the green button to enter your name."
-        ),
-        color=discord.Color.blue()
-    )
+#    embed = discord.Embed(
+#        title="🌟 Tournament Activity Registration",
+#        description=(
+#            "Please select your participation status for the activities below.\n"
+#            "⚠️ **Requirement:** You must opt into **at least two (2)** activities.\n\n"
+#            "Once selections are made, click the green button to enter your name."
+#        ),
+#        color=discord.Color.blue()
+#    )
     await ctx.send(embed=embed, view=LaunchView())
 
 def standings_loop():
