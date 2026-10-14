@@ -495,15 +495,15 @@ class LaunchView(discord.ui.View):
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def setup_signup(ctx):
-#    embed = discord.Embed(
-#        title="🌟 Tournament Activity Registration",
+    embed = discord.Embed(
+        title="🌟 Tournament Registration",
 #        description=(
 #            "Please select your participation status for the activities below.\n"
 #            "⚠️ **Requirement:** You must opt into **at least two (2)** activities.\n\n"
 #            "Once selections are made, click the green button to enter your name."
 #        ),
-#        color=discord.Color.blue()
-#    )
+        color=discord.Color.blue()
+    )
     await ctx.send(embed=embed, view=LaunchView())
 
 def standings_loop():
