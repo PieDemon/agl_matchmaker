@@ -454,10 +454,10 @@ class ActivitySelectionView(discord.ui.View):
         row_index = 0
         exists = False
         for row in standings_manager.get_records():
+            row_index = row_index + 1
             if row[0] == str(interaction.user.id):
                 exists = True
                 break
-            row_index = row_index + 1
         if not exists:
             row_index = standings_manager.new_row()
         standings_manager.queue_change(row_index,0,str(interaction.user.id))
