@@ -465,7 +465,7 @@ class ActivitySelectionView(discord.ui.View):
         row_index = standings_manager.new_row()
         standings_manager.queue_change(row_index,0,str(interaction.user.id))
         standings_manager.queue_change(row_index,1,interaction.user.display_name)
-        standings_manager.queue_change(row_index,2,self.name_input.value)
+#        standings_manager.queue_change(row_index,2,self.name_input.value)
         standings_manager.queue_change(row_index,3,self.selections.get("FIN", "No"))
         standings_manager.queue_change(row_index,4,self.selections.get("EOE", "No"))
         standings_manager.queue_change(row_index,5,self.selections.get("TLA", "No"))
