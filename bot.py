@@ -462,7 +462,15 @@ class ActivitySelectionView(discord.ui.View):
             
         # Prepare data row for Google Sheets
         # Format: [Discord Username, Custom Name Input, SOS, MSH, ECL, TLA]
-        row_index = standings_manager.new_row()
+        row_index = 0
+        exists = False
+        for row in standings_manager.get_records():
+            if row[0] == str(interaction.user.id):
+                exists = True
+                break
+            row_index = row_index + 1
+        if not exists:
+            row_index = standings_manager.new_row()
         standings_manager.queue_change(row_index,0,str(interaction.user.id))
         standings_manager.queue_change(row_index,1,interaction.user.display_name)
 #        standings_manager.queue_change(row_index,2,self.name_input.value)
