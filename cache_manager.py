@@ -33,6 +33,7 @@ class CacheManager:
     def queue_change(self, row, col, value):
         while(self.update_in_progress):
             time.sleep(1)
+        #print(f"DEBUG: queueing change for row {row} col {col} value {value}")
         self.update_queue[(row, col)] = value
 
     #get_all_values returns a list of list which can be indexed by row/column
@@ -74,10 +75,10 @@ class CacheManager:
             updates = []
     
             for (row,col) in self.update_queue.keys():
-                if row and col:
-                    cell_id = gspread.utils.rowcol_to_a1(row, col + 1)
-                    print(f"DEBUG: pushing update for row {row} col {col} value {self.update_queue[(row, col)]} to cell {cell_id}")
-                    updates.append({'range': self.worksheet_name + "!" + cell_id, 'values': [[self.update_queue[(row, col)]]]})
+               # if row and col: #col = 0 caused this to be false
+                cell_id = gspread.utils.rowcol_to_a1(row, col + 1)
+                #print(f"DEBUG: pushing update for row {row} col {col} value {self.update_queue[(row, col)]} to cell {cell_id}")
+                updates.append({'range': self.worksheet_name + "!" + cell_id, 'values': [[self.update_queue[(row, col)]]]})
     
             self.update_queue.clear()
             self.new_records = 0
