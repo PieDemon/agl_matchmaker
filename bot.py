@@ -449,7 +449,7 @@ class ActivitySelectionView(discord.ui.View):
         self.add_item(ActivityDropdown("FRA"))
 
     @discord.ui.button(label="Submit", style=discord.ButtonStyle.green, row=4)
-    async def on_submit(self, interaction: discord.Interaction):
+    async def on_submit(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Count how many "Yes" choices they made
         yes_count = sum(1 for val in self.selections.values() if val == "Yes")
         
