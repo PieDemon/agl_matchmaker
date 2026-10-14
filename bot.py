@@ -109,13 +109,13 @@ class ScoreDropdown(discord.ui.Select):
         
         try:
             # Determine column based on player position
-            # A wins is Column 4 (D), B wins is Column 7 (G)
-            col_num = 4 if self.is_player_a else 7
+            # A wins is Column 3 (D), B wins is Column 6 (G)
+            col_num = 3 if self.is_player_a else 6
             matches_manager.queue_change(self.sheet_row, col_num, wins_reported)
             
             # Update end time column (Column 2 / B) to track when reporting finished
             end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            matches_manager.queue_change(self.sheet_row, 2, end_time)
+            matches_manager.queue_change(self.sheet_row, 1, end_time)
             
             # Disable dropdown after selection so they can't double-submit
             self.disabled = True
