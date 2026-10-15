@@ -96,7 +96,7 @@ def already_played(val1, val2):
         return None
 
 class ScoreDropdown(discord.ui.Select):
-    def __init__(self, sheet_row: int, is_player_a: bool, channel_name: string):
+    def __init__(self, sheet_row: int, is_player_a: bool, channel_name: string, guild: discord.Guild):
         self.sheet_row = sheet_row
         self.is_player_a = is_player_a  # True if they are Player A, False if Player B
         self.channel_name = channel_name
@@ -126,7 +126,7 @@ class ScoreDropdown(discord.ui.Select):
             # Disable dropdown after selection so they can't double-submit
             self.disabled = True
 
-            target_channel = discord.utils.get(interaction.guild.text_channels, name=self.channel_name)
+            target_channel = discord.utils.get(guild.text_channels, name=self.channel_name)
             await target_channel.set_permissions(interaction.user, read_messages=True, send_messages=True)
             
             await interaction.edit_original_response(
@@ -139,9 +139,9 @@ class ScoreDropdown(discord.ui.Select):
             await interaction.followup.send("❌ An error occurred while writing your score to the spreadsheet.", ephemeral=True)
 
 class ScoreReportingView(discord.ui.View):
-    def __init__(self, sheet_row: int, is_player_a: bool, channel_name: string):
+    def __init__(self, sheet_row: int, is_player_a: bool, channel_name: string, guild: discord.Guild):
         super().__init__(timeout=None) # Keeps the buttons functional indefinitely
-        self.add_item(ScoreDropdown(sheet_row, is_player_a, channel_name))
+        self.add_item(ScoreDropdown(sheet_row, is_player_a, channel_name, guild))
 
 async def record_match_start(p1_name: str, p2_name: str, p1_matched_pool: str, p2_matched_pool: str) -> int:
     """Inserts a new match record into the 'Matches' sheet and returns its row number."""
@@ -336,7 +336,7 @@ class MatchmakingView(discord.ui.View):
                     
                 # Deliver Build + Score Dropdown to Player 1 (Player A)
                 try:
-                    p1_view = ScoreReportingView(sheet_row=match_row, is_player_a=True, channel_name=paired_build["channel"])
+                    p1_view = ScoreReportingView(sheet_row=match_row, is_player_a=True, channel_name=paired_build["channel"], guild=interaction.guild)
                     await interaction.user.send(
                         content=(
                             f"⚔️ Your match is ready!\n"
@@ -350,7 +350,7 @@ class MatchmakingView(discord.ui.View):
                     
                 # Deliver Build + Score Dropdown to Player 2 (Player B)
                 try:
-                    p2_view = ScoreReportingView(sheet_row=match_row, is_player_a=False, channel_name=paired_build["channel"])
+                    p2_view = ScoreReportingView(sheet_row=match_row, is_player_a=False, channel_name=paired_build["channel"], guild=interaction.guild)
                     await opponent_user.send(
                         content=(
                             f"⚔️ Your match is ready!\n"
