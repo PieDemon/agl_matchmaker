@@ -222,10 +222,8 @@ async def get_user_activities(player_id: int) -> set:
         user_yes_activities = set()
         
         for i, activity in enumerate(activities):
-            print(f"debug: checking {activity}")
             # Safe check in case row_values is shorter than expected
             if row_values and len(row_values) > (3 + i) and row_values[3 + i] == "Yes":
-                print(f"matched on {activity}")
                 user_yes_activities.add(activity)
                 
         return user_yes_activities
@@ -493,7 +491,7 @@ class ActivitySelectionView(discord.ui.View):
         standings_manager.queue_change(row_index,9,f"=COUNTIF(Matches!C:C, A{row_index})+COUNTIF(Matches!F:F, A{row_index})")
 
         await interaction.response.send_message(
-            f"✅ Thank you! Your participation has been recorded. Please wait up to 15 seconds for it to reflect on the spreadsheet before queueing.",
+            f"✅ Thank you! Your participation has been recorded. Please wait up to 10 seconds for it to reflect on the spreadsheet before queueing.",
             ephemeral=True
         )
 
@@ -523,13 +521,13 @@ def standings_loop():
     while(True):
         print("flushing and refreshing standings")
         standings_manager.flush_updates_to_sheet()
-        time.sleep(15)
+        time.sleep(10)
 
 def matches_loop():
     while(True):
         print("flushing and refreshing matches")
         matches_manager.flush_updates_to_sheet()
-        time.sleep(31)
+        time.sleep(10)
 
 def run_my_bot():
     token = os.environ.get("DISCORD_TOKEN")
