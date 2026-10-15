@@ -127,7 +127,7 @@ class ScoreDropdown(discord.ui.Select):
             # Disable dropdown after selection so they can't double-submit
             self.disabled = True
 
-            live_guild = self.bot.get_guild(self.guild_id)
+            live_guild = bot.get_guild(self.guild_id)
             if live_guild is None:
                 await interaction.response.send_message("Error: Could not locate the server.", ephemeral=True)
                 return
