@@ -61,10 +61,6 @@ def already_played_build(player, build):
         p1_pool_col = "A pool"
         p2_pool_col = "B pool"
 
-#        print(f"debug: player {player}; build {build}; len(df[p1_name_col] == player) {len(df[p1_name_col] == player)}")
-#        print(f"debug: len(df[p2_name_col] == player) {len(df[p2_name_col] == player)}; len(df[p1_pool_col] == build) {len(df[p1_pool_col] == build)}")
-#        print(f"debug: len(df[p1_pool_col] == build) {len(df[p1_pool_col] == build)}")
-
         name_condition = (df[p1_name_col] == player) | (df[p2_name_col] == player)
         pool_condition = (df[p1_pool_col] == build) | (df[p2_pool_col] == build)
         
@@ -129,14 +125,14 @@ class ScoreDropdown(discord.ui.Select):
 
             live_guild = bot.get_guild(self.guild_id)
             if live_guild is None:
-                await interaction.response.send_message("Error: Could not locate the server.", ephemeral=True)
+                await interaction.followup.send("Error: Could not locate the server.", ephemeral=True)
                 return
     
             # 2. Get the text channels from the fresh guild instance
             target_channel = discord.utils.get(live_guild.text_channels, name=self.channel_name)
             
             if target_channel is None:
-                await interaction.response.send_message(f"Channel `{self.channel_name}` not found.", ephemeral=True)
+                await interaction.followup.send(f"Channel `{self.channel_name}` not found.", ephemeral=True)
                 return
     
             # 3. Rest of your permission logic
