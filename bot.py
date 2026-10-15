@@ -7,6 +7,7 @@ import pandas as pd
 from cache_manager import CacheManager
 import threading
 import time
+from itertools import batched
 
 SHEET_ID = "1BcSxlAv1vOdIXDdnivXHmfsP_tTnv0dzdb0fxCWN2FY"
 SCOPES = [
@@ -234,7 +235,7 @@ async def get_paired_builds(p1, p2, activity_sets) -> dict:
         return valid_match                  
     except Exception as e:
         print(f"Error fetching paired builds: {e}")
-        return None, None
+        return {}
 
 class MatchmakingView(discord.ui.View):
     def __init__(self):
