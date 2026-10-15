@@ -100,6 +100,7 @@ class ScoreDropdown(discord.ui.Select):
         self.sheet_row = sheet_row
         self.is_player_a = is_player_a  # True if they are Player A, False if Player B
         self.channel_name = channel_name
+        self.guild = guild
         
         options = [
             discord.SelectOption(label="0 Wins", value="0", description="I won 0 games"),
@@ -126,7 +127,7 @@ class ScoreDropdown(discord.ui.Select):
             # Disable dropdown after selection so they can't double-submit
             self.disabled = True
 
-            target_channel = discord.utils.get(guild.text_channels, name=self.channel_name)
+            target_channel = discord.utils.get(self.guild.text_channels, name=self.channel_name)
             await target_channel.set_permissions(interaction.user, read_messages=True, send_messages=True)
             
             await interaction.edit_original_response(
