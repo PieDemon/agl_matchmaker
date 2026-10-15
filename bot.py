@@ -137,7 +137,14 @@ class ScoreDropdown(discord.ui.Select):
     
             # 3. Rest of your permission logic
             member = live_guild.get_member(interaction.user.id) or await live_guild.fetch_member(interaction.user.id)
-            await target_channel.set_permissions(member, read_messages=True, send_messages=True)
+            await target_channel.set_permissions(
+                member, 
+                read_messages=True, 
+                send_messages=True,
+                read_message_history=True,  # 👈 Allows them to see past messages
+                add_reactions=True,         # 👈 Allows them to add emoji reactions
+                use_external_emojis=True    # 👈 Optional: Allows emojis from other servers
+            )
             
             await interaction.edit_original_response(
                 content=f"✅ **Results Submitted!** Your score of **{wins_reported} wins** has been logged. You have also been added to {target_channel.mention} if you would like to discuss the match.",
