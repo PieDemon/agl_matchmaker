@@ -231,7 +231,7 @@ async def get_paired_builds(p1, p2, activity_sets) -> dict:
             if len(row_a) >= 3 and len(row_b) >=3:
                 set_code = row_a[2].strip().upper()
                 if set_code in activity_sets:
-                    if not (already_played_build(p1, row_a) or already_played_build(p2, row_a)):
+                    if not (already_played_build(p1, row_a[1]) or already_played_build(p2, row_a[1])):
                         valid_match["channel"] = set_code + "-" + str((channel_index % 6) + 1)
                         valid_match["p1_build"] = row_a[1]
                         valid_match["p2_build"] = row_b[1]
