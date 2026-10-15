@@ -61,6 +61,10 @@ def already_played_build(player, build):
         p1_pool_col = "A pool"
         p2_pool_col = "B pool"
 
+        print(f"debug: player {player}; build {build}; len(df[p1_name_col] == player) {len(df[p1_name_col] == player)}")
+        print(f"debug: len(df[p2_name_col] == player) {len(df[p2_name_col] == player)}; len(df[p1_pool_col] == build) {len(df[p1_pool_col] == build)}")
+        print(f"debug: len(df[p1_pool_col] == build) {len(df[p1_pool_col] == build)}")
+
         name_condition = (df[p1_name_col] == player) | (df[p2_name_col] == player)
         pool_condition = (df[p1_pool_col] == build) | (df[p2_pool_col] == build)
         
