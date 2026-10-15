@@ -96,11 +96,11 @@ def already_played(val1, val2):
         return None
 
 class ScoreDropdown(discord.ui.Select):
-    def __init__(self, sheet_row: int, is_player_a: bool, channel_name: string, guild: discord.Guild):
+    def __init__(self, sheet_row: int, is_player_a: bool, channel_name: string, guild_id: int):
         self.sheet_row = sheet_row
         self.is_player_a = is_player_a  # True if they are Player A, False if Player B
         self.channel_name = channel_name
-        self.guild = guild
+        self.guild_id = guild_id
         
         options = [
             discord.SelectOption(label="0 Wins", value="0", description="I won 0 games"),
@@ -127,8 +127,21 @@ class ScoreDropdown(discord.ui.Select):
             # Disable dropdown after selection so they can't double-submit
             self.disabled = True
 
-            target_channel = discord.utils.get(self.guild.text_channels, name=self.channel_name)
-            await target_channel.set_permissions(interaction.user, read_messages=True, send_messages=True)
+            live_guild = self.bot.get_guild(self.guild_id)
+            if live_guild is None:
+                await interaction.response.send_message("Error: Could not locate the server.", ephemeral=True)
+                return
+    
+            # 2. Get the text channels from the fresh guild instance
+            target_channel = discord.utils.get(live_guild.text_channels, name=self.channel_name)
+            
+            if target_channel is None:
+                await interaction.response.send_message(f"Channel `{self.channel_name}` not found.", ephemeral=True)
+                return
+    
+            # 3. Rest of your permission logic
+            member = live_guild.get_member(interaction.user.id) or await live_guild.fetch_member(interaction.user.id)
+            await target_channel.set_permissions(member, read_messages=True, send_messages=True)
             
             await interaction.edit_original_response(
                 content=f"✅ **Results Submitted!** Your score of **{wins_reported} wins** has been logged. You have also been added to {target_channel.mention} if you would like to discuss the match.",
@@ -140,9 +153,9 @@ class ScoreDropdown(discord.ui.Select):
             await interaction.followup.send("❌ An error occurred while writing your score to the spreadsheet.", ephemeral=True)
 
 class ScoreReportingView(discord.ui.View):
-    def __init__(self, sheet_row: int, is_player_a: bool, channel_name: string, guild: discord.Guild):
+    def __init__(self, sheet_row: int, is_player_a: bool, channel_name: string, guild_id: int):
         super().__init__(timeout=None) # Keeps the buttons functional indefinitely
-        self.add_item(ScoreDropdown(sheet_row, is_player_a, channel_name, guild))
+        self.add_item(ScoreDropdown(sheet_row, is_player_a, channel_name, guild_id))
 
 async def record_match_start(p1_name: str, p2_name: str, p1_matched_pool: str, p2_matched_pool: str) -> int:
     """Inserts a new match record into the 'Matches' sheet and returns its row number."""
@@ -337,7 +350,7 @@ class MatchmakingView(discord.ui.View):
                     
                 # Deliver Build + Score Dropdown to Player 1 (Player A)
                 try:
-                    p1_view = ScoreReportingView(sheet_row=match_row, is_player_a=True, channel_name=paired_build["channel"], guild=interaction.guild)
+                    p1_view = ScoreReportingView(sheet_row=match_row, is_player_a=True, channel_name=paired_build["channel"], guild_id=interaction.guild.id)
                     await interaction.user.send(
                         content=(
                             f"⚔️ Your match is ready!\n"
@@ -351,7 +364,7 @@ class MatchmakingView(discord.ui.View):
                     
                 # Deliver Build + Score Dropdown to Player 2 (Player B)
                 try:
-                    p2_view = ScoreReportingView(sheet_row=match_row, is_player_a=False, channel_name=paired_build["channel"], guild=interaction.guild)
+                    p2_view = ScoreReportingView(sheet_row=match_row, is_player_a=False, channel_name=paired_build["channel"], guild_id=interaction.guild.id)
                     await opponent_user.send(
                         content=(
                             f"⚔️ Your match is ready!\n"
