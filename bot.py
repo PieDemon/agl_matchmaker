@@ -273,12 +273,12 @@ class MatchmakingView(discord.ui.View):
         # 🚨 LOCK 1: Is the bot currently processing an active click from this user?
         if player_id in processing_players:
             # Respond instantly WITHOUT deferring to save performance
-            await interaction.response.send_message("⏳ Please wait, your request is already being processed!", ephemeral=True)
+            await interaction.followup.send("⏳ Please wait, your request is already being processed!", ephemeral=True)
             return
     
         # 🚨 LOCK 2: Are they already safely waiting inside the queue?
         if player_id in queue:
-            await interaction.response.send_message("❌ You are already in the queue!", ephemeral=True)
+            await interaction.followup.send("❌ You are already in the queue!", ephemeral=True)
             return
     
         # Activate the optimistic lock instantly before deferring
