@@ -242,16 +242,17 @@ async def get_paired_builds(p1, p2, activity_sets) -> dict:
         valid_match = {}
         channel_index = 0
         for row_a,row_b in batched(all_rows,2):
-            print(f"debug: checking row a {row_a} and row b {row_b}")
+            #print(f"debug: checking row a {row_a} and row b {row_b}")
             if len(row_a) >= 3 and len(row_b) >=3:
                 set_code = row_a[2].strip().upper()
-                print(f"debug: set code is {set_code}")
+                #print(f"debug: set code is {set_code}")
                 if set_code in activity_sets:
-                    print(f"checking if already played for p1 {p1} p2 {p2} and row_a[1] {row_a[1]}")
+                    #print(f"checking if already played for p1 {p1} p2 {p2} and row_a[1] {row_a[1]}")
                     if not (already_played_build(p1, row_a[1]) or already_played_build(p2, row_a[1])):
                         valid_match["channel"] = set_code.lower() + "-" + str((channel_index % 6) + 1)
                         valid_match["p1_build"] = row_a[1]
                         valid_match["p2_build"] = row_b[1]
+                        break
             channel_index = channel_index + 1
         return valid_match                  
     except Exception as e:
@@ -314,7 +315,7 @@ class MatchmakingView(discord.ui.View):
                 await interaction.followup.send("⚠️ **Error:** Could not retrieve your activity choices.", ephemeral=True)
                 return
 
-            print(f"debug: {player_id} player activities: {player_activities}")
+            #print(f"debug: {player_id} player activities: {player_activities}")
             
             # Matchmaking loop
             opponent_id = None
@@ -322,13 +323,13 @@ class MatchmakingView(discord.ui.View):
             
             for queued_player_id in queue:
                 if already_played(player_id, queued_player_id):
-                    print(f"debug: {player_id} and {queued_player_id} already played")
+                    #print(f"debug: {player_id} and {queued_player_id} already played")
                     continue
                 
                 opponent_activities = await get_user_activities(queued_player_id)
                 shared_activities = player_activities & opponent_activities
 
-                print(f"debug: shared activities: {shared_activities}")
+                #print(f"debug: shared activities: {shared_activities}")
                 
                 if shared_activities:
                     opponent_id = queued_player_id
