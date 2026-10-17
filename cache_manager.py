@@ -83,7 +83,7 @@ class CacheManager:
                 if attempt == max_retries - 1:
                     print(f"Max retries ({max_retries}) reached. Raising error.")
                     raise e
-                sleep(10)
+                sleep(7)
             except Exception as e:
                 # Fail immediately on non-API errors (e.g., SyntaxError, ValueError)
                 raise e
