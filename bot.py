@@ -536,7 +536,7 @@ def matches_loop():
     while(True):
         print("flushing and refreshing matches")
         matches_manager.flush_updates_to_sheet()
-        time.sleep(10)
+        time.sleep(20)
 
 def run_my_bot():
     token = os.environ.get("DISCORD_TOKEN")
