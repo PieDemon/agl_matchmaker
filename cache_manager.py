@@ -33,7 +33,6 @@ class CacheManager:
     def queue_change(self, row, col, value):
         while(self.update_in_progress):
             time.sleep(1)
-        #print(f"DEBUG: queueing change for row {row} col {col} value {value}")
         self.update_queue[(row, col)] = value
 
     #get_all_values returns a list of list which can be indexed by row/column
@@ -49,11 +48,6 @@ class CacheManager:
         for row in reversed(self.records):
             # Check if the row contains anything other than empty strings
             if any(cell.strip() for cell in row):
-                #index = 0
-                #for cell in row:
-                    #if cell.strip():
-                    #    print(f"debug: nonempty cell in row {last_row_index} with contents |{cell}|")
-                    #index = index + 1
                 break
             last_row_index -= 1
         
@@ -66,20 +60,29 @@ class CacheManager:
         return self.records
 
     def flush_updates_to_sheet(self):
-        if self.update_queue:
+        max_retries = 5
+        for attempt in range(max_retries):
             try:
-                self.update_in_progress = True
-                updates = []
-        
-                for (row,col) in self.update_queue.keys():
-                   # if row and col: #col = 0 caused this to be false
-                    cell_id = gspread.utils.rowcol_to_a1(row, col + 1)
-                    #print(f"DEBUG: pushing update for row {row} col {col} value {self.update_queue[(row, col)]} to cell {cell_id}")
-                    updates.append({'range': self.worksheet_name + "!" + cell_id, 'values': [[self.update_queue[(row, col)]]]})
-        
-                self.update_queue.clear()
-                self.new_records = 0
-                self.sh.values_batch_update({"valueInputOption": "USER_ENTERED", "data": updates})
-            finally:
-                self.update_in_progress = False
-        self.refresh_values()
+                if self.update_queue:
+                    try:
+                        self.update_in_progress = True
+                        updates = []
+                
+                        for (row,col) in self.update_queue.keys():
+                            cell_id = gspread.utils.rowcol_to_a1(row, col + 1)
+                            updates.append({'range': self.worksheet_name + "!" + cell_id, 'values': [[self.update_queue[(row, col)]]]})
+                
+                        self.update_queue.clear()
+                        self.new_records = 0
+                        self.sh.values_batch_update({"valueInputOption": "USER_ENTERED", "data": updates})
+                    finally:
+                        self.update_in_progress = False
+                self.refresh_values()
+            except APIError as e:
+                if attempt == max_retries - 1:
+                    print(f"Max retries ({max_retries}) reached. Raising error.")
+                    raise e
+                sleep(10)
+            except Exception as e:
+                # Fail immediately on non-API errors (e.g., SyntaxError, ValueError)
+                raise e
