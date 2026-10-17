@@ -533,6 +533,7 @@ def standings_loop():
         time.sleep(10)
 
 def matches_loop():
+    time.sleep(5)
     while(True):
         print("flushing and refreshing matches")
         matches_manager.flush_updates_to_sheet()
@@ -547,7 +548,7 @@ def run_my_bot():
     print("Starting standings refresher thread")
     standings_thread = threading.Thread(target=standings_loop, daemon=True)
     standings_thread.start()    
-    
+
     print("Starting matches refresher thread")
     matches_thread = threading.Thread(target=matches_loop, daemon=True)
     matches_thread.start()    
