@@ -2,6 +2,7 @@ import os
 import gspread
 import time
 from google.oauth2.service_account import Credentials
+from gspread.exceptions import APIError
 
 # 1. Google Sheets Setup
 SHEET_ID = "1BcSxlAv1vOdIXDdnivXHmfsP_tTnv0dzdb0fxCWN2FY"
