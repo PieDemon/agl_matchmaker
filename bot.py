@@ -500,7 +500,7 @@ class ActivitySelectionView(discord.ui.View):
         standings_manager.queue_change(row_index,9,f"=COUNTIF(Matches!C:C, A{row_index})+COUNTIF(Matches!F:F, A{row_index})")
 
         await interaction.response.send_message(
-            f"✅ Thank you! Your participation has been recorded. Please wait up to 10 seconds for it to reflect on the spreadsheet before queueing.",
+            f"✅ Thank you! Your participation has been recorded. Please wait up to 30 seconds for it to reflect on the spreadsheet before queueing.",
             ephemeral=True
         )
 
@@ -530,14 +530,14 @@ def standings_loop():
     while(True):
         print("flushing and refreshing standings")
         standings_manager.flush_updates_to_sheet()
-        time.sleep(10)
+        time.sleep(30)
 
 def matches_loop():
-    time.sleep(5)
+    time.sleep(15)
     while(True):
         print("flushing and refreshing matches")
         matches_manager.flush_updates_to_sheet()
-        time.sleep(20)
+        time.sleep(30)
 
 def run_my_bot():
     token = os.environ.get("DISCORD_TOKEN")
