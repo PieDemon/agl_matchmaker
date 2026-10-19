@@ -80,10 +80,11 @@ class CacheManager:
                         self.update_in_progress = False
                 self.refresh_values()
             except APIError as e:
-                if attempt == max_retries - 1:
-                    print(f"Max retries ({max_retries}) reached. Raising error.")
-                    raise e
-                sleep(7)
+                print("hit a rate limit, waiting for next loop")
+                #if attempt == max_retries - 1:
+                #    print(f"Max retries ({max_retries}) reached. Raising error.")
+                #    raise e
+                #sleep(7)
             except Exception as e:
                 # Fail immediately on non-API errors (e.g., SyntaxError, ValueError)
                 raise e
