@@ -470,12 +470,12 @@ class ActivitySelectionView(discord.ui.View):
         # Count how many "Yes" choices they made
         yes_count = sum(1 for val in self.selections.values() if val == "Yes")
         
-        if yes_count < 2:
-            await interaction.response.send_message(
-                f"❌ Registration failed. You must select **Yes** for at least 2 activities. (You selected {yes_count})",
-                ephemeral=True
-            )
-            return
+        #if yes_count < 2:
+        #    await interaction.response.send_message(
+        #        f"❌ Registration failed. You must select **Yes** for at least 2 activities. (You selected {yes_count})",
+        #        ephemeral=True
+        #    )
+        #    return
             
         # Prepare data row for Google Sheets
         # Format: [Discord Username, Custom Name Input, SOS, MSH, ECL, TLA]
@@ -511,8 +511,7 @@ class LaunchView(discord.ui.View):
     @discord.ui.button(label="Click to Register", style=discord.ButtonStyle.primary)
     async def open_form(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message(
-            "Please select your participation status for the activities below.\n"
-            "⚠️ **Requirement:** You must opt into **at least two (2)** activities.\n\n",
+            "Please select your participation status for the activities below.\n",
             view=ActivitySelectionView(),
             ephemeral=True 
         )
