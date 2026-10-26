@@ -83,9 +83,9 @@ def already_played(val1, val2):
         col1_name = "Player A"
         col2_name = "Player B"
         
-        exists = (((df[col1_name] == str(val1)) & (df[col2_name] == str(val2))).any() or ((df[col1_name] == str(val2)) & (df[col2_name] == str(val1))).any())
+        matches_played = (((df[col1_name] == str(val1)) & (df[col2_name] == str(val2))).any() or ((df[col1_name] == str(val2)) & (df[col2_name] == str(val1))).sum())
         
-        return exists
+        return (matches_played >= 2)
     except Exception as e:
         print(f"Error checking whether players have played: {e}")
         return None
