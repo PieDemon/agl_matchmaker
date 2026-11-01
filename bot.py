@@ -68,8 +68,8 @@ def already_played_build(player, build):
         return not matching_rows.empty
         
     except Exception as e:
-        print(f"Error checking whether players have played: {e}")
-        return None
+        print(f"Error checking whether player has played build: {e}")
+        return True
 
 def already_played(val1, val2):
     try:
@@ -83,15 +83,19 @@ def already_played(val1, val2):
         col1_name = "Player A"
         col2_name = "Player B"
         
+        print(f"Checking if {str(val1)} played {str(val2)}")
         condition_1 = ((df[col1_name] == str(val1)) & (df[col2_name] == str(val2)))
+        print(f"Matched {condition_1.sum()} times")
         condition_2 = ((df[col1_name] == str(val2)) & (df[col2_name] == str(val1)))
+        print(f"Matched {condition_2.sum()} times")
 
         matches_played = (condition_1 | condition_2).sum()
+        print(f"Total matches: {matches_played}")
         
         return (matches_played >= 2)
     except Exception as e:
         print(f"Error checking whether players have played: {e}")
-        return None
+        return True
 
 class ScoreDropdown(discord.ui.Select):
     def __init__(self, sheet_row: int, is_player_a: bool, channel_name: string, guild_id: int):
